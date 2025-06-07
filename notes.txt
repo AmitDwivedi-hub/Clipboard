@@ -1,0 +1,34 @@
+/**
+ * Initializes an SSLContext for secure MongoDB communication using a keystore and truststore.
+ * The SSLContext is configured with TLS protocol, using key managers and trust managers derived
+ * from the loaded keystore and truststore.
+ *
+ * @return A configured SSLContext instance for use in MongoDB client settings.
+ * @throws Exception if there is an error initializing the SSLContext, such as issues loading
+ *                   the keystore/truststore, invalid passwords, or unsupported algorithms.
+ */
+
+/**
+ * Loads a KeyStore from an InputStream with the specified store type and password.
+ * The InputStream should point to a keystore or truststore file (e.g., in JKS or PKCS12 format)
+ * accessible from the classpath.
+ *
+ * @param keyStoreStream The InputStream to read the keystore or truststore from.
+ * @param storeType The type of the KeyStore (e.g., "JKS" or "PKCS12").
+ * @param password The password to decrypt the keystore or truststore.
+ * @return A loaded KeyStore instance.
+ * @throws KeyStoreException if there is an error creating or initializing the KeyStore.
+ * @throws IOException if there is an error reading from the InputStream.
+ * @throws NoSuchAlgorithmException if the algorithm used to check the integrity of the keystore cannot be found.
+ * @throws CertificateException if there is an error with certificates in the keystore.
+ * @throws IllegalArgumentException if the InputStream is null.
+ */
+
+/**
+ * Retrieves the file path to the keystore resource from the classpath.
+ * The keystore file should be located in the classpath (e.g., in src/main/resources)
+ * and is typically in JKS or PKCS12 format.
+ *
+ * @return The file path to the keystore as a String.
+ * @throws IllegalStateException if the keystore file is not found in the classpath.
+ */
