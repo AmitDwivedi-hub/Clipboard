@@ -1,57 +1,85 @@
-package com.esi.daas.hdclaim.common.config;
+package com.esi.daas.hdclaim.common.config; // Assuming this package based on previous context
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.util.StringUtils;
 
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
+import javax.annotation.PostConstruct;
+import java.util.Properties;
 
 @Configuration
-@EnableScheduling
-public class SchedulerConfig {
+public class EmailConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(SchedulerConfig.class);
+    private static final Logger logger = LoggerFactory.getLogger(EmailConfig.class);
 
-    @Value("${scheduler.pool.size:4}")
-    private int poolSize;
+    @Value("${mail.openshift.smtp.host}")
+    private String host;
 
-    @Value("${scheduler.queue.capacity:50}")
-    private int queueCapacity;
+    @Value("${mail.openshift.smtp.port}")
+    private String port;
 
-    @Value("${scheduler.await.termination.seconds:60}")
-    private int awaitTerminationSeconds;
+    @Value("${mail.openshift.smtp.svacc.id}")
+    private String username;
+
+    @Value("${mail.openshift.smtp.svacc.pwd}")
+    private String password;
+
+    @Value("${mail.smtp.auth:true}")
+    private boolean smtpAuth;
+
+    @Value("${mail.smtp.starttls.enable:true}")
+    private boolean startTlsEnabled;
+
+    @Value("${mail.smtp.connectiontimeout:5000}")
+    private int connectionTimeout;
+
+    @Value("${mail.smtp.timeout:10000}")
+    private int timeout;
+
+    @PostConstruct
+    public void validateProperties() {
+        if (!StringUtils.hasText(host)) {
+            throw new IllegalArgumentException("SMTP host must not be empty");
+        }
+        if (!StringUtils.hasText(username)) {
+            throw new IllegalArgumentException("SMTP username must not be empty");
+        }
+        if (!StringUtils.hasText(password)) {
+            logger.warn("SMTP password is empty. Ensure this is intentional.");
+        }
+    }
 
     @Bean
-    public ThreadPoolTaskScheduler taskScheduler() {
-        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+    public JavaMailSender javaMailSender() {
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+        mailSender.setHost(host);
+        
+        try {
+            mailSender.setPort(Integer.parseInt(port));
+        } catch (NumberFormatException e) {
+            logger.error("Invalid SMTP port value: {}. Defaulting to 587", port, e);
+            mailSender.setPort(587); // Default SMTP port
+        }
 
-        // Set pool size
-        scheduler.setPoolSize(poolSize);
+        mailSender.setUsername(username);
+        mailSender.setPassword(password);
 
-        // Set thread name prefix for easier debugging
-        scheduler.setThreadNamePrefix("scheduled-task-");
+        Properties properties = new Properties();
+        properties.put("mail.smtp.auth", String.valueOf(smtpAuth));
+        properties.put("mail.smtp.starttls.enable", String.valueOf(startTlsEnabled));
+        properties.put("mail.smtp.connectiontimeout", connectionTimeout); // 5 seconds
+        properties.put("mail.smtp.timeout", timeout); // 10 seconds
 
-        // Configure bounded queue and rejection policy
-        scheduler.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        mailSender.setJavaMailProperties(properties);
 
-        // Enable graceful shutdown
-        scheduler.setWaitForTasksToCompleteOnShutdown(true);
-        scheduler.setAwaitTerminationSeconds(awaitTerminationSeconds);
+        logger.info("JavaMailSender configured with host={}, port={}, username={}, smtpAuth={}, startTlsEnabled={}, connectionTimeout={}ms, timeout={}ms",
+                host, port, username, smtpAuth, startTlsEnabled, connectionTimeout, timeout);
 
-        // Set an error handler for scheduled tasks
-        scheduler.setErrorHandler(t -> logger.error("Error in scheduled task", t));
-
-        // Initialize the scheduler
-        scheduler.initialize();
-
-        logger.info("ThreadPoolTaskScheduler configured with poolSize={}, queueCapacity={}, awaitTerminationSeconds={}",
-                poolSize, queueCapacity, awaitTerminationSeconds);
-
-        return scheduler;
+        return mailSender;
     }
 }
