@@ -1,12 +1,6 @@
 /**
- * Loads a KeyStore from a file path with the specified store type and password.
+ * Retrieves the file path to the keystore resource from the classpath.
  *
- * @param filePath  The path to the keystore file.
- * @param storeType The type of the KeyStore (e.g., "JKS" or "PKCS12").
- * @param password  The password to decrypt the keystore.
- * @return A loaded KeyStore instance.
- * @throws KeyStoreException         If the KeyStore cannot be created or initialized.
- * @throws IOException              If there is an error reading the file.
- * @throws NoSuchAlgorithmException If the algorithm for integrity check is not found.
- * @throws CertificateException     If there is an error with certificates in the keystore.
+ * @return The file path to the keystore as a String.
+ * @throws NullPointerException if the keystore resource is not found in the classpath.
  */
