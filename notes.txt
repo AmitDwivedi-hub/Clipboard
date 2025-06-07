@@ -1,11 +1,57 @@
-@Value("${rest.template.connect.timeout:10000}")
-    private int connectTimeout;
+package com.esi.daas.hdclaim.common.config;
 
-    @Value("${rest.template.read.timeout:240000}")
-    private int readTimeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
-    @Value("${rest.template.max.connections:200}")
-    private int maxConnections;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
 
-    @Value("${rest.template.max.connections.per.route:20}")
-    private int maxConnectionsPerRoute;
+@Configuration
+@EnableScheduling
+public class SchedulerConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(SchedulerConfig.class);
+
+    @Value("${scheduler.pool.size:4}")
+    private int poolSize;
+
+    @Value("${scheduler.queue.capacity:50}")
+    private int queueCapacity;
+
+    @Value("${scheduler.await.termination.seconds:60}")
+    private int awaitTerminationSeconds;
+
+    @Bean
+    public ThreadPoolTaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+
+        // Set pool size
+        scheduler.setPoolSize(poolSize);
+
+        // Set thread name prefix for easier debugging
+        scheduler.setThreadNamePrefix("scheduled-task-");
+
+        // Configure bounded queue and rejection policy
+        scheduler.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+
+        // Enable graceful shutdown
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        scheduler.setAwaitTerminationSeconds(awaitTerminationSeconds);
+
+        // Set an error handler for scheduled tasks
+        scheduler.setErrorHandler(t -> logger.error("Error in scheduled task", t));
+
+        // Initialize the scheduler
+        scheduler.initialize();
+
+        logger.info("ThreadPoolTaskScheduler configured with poolSize={}, queueCapacity={}, awaitTerminationSeconds={}",
+                poolSize, queueCapacity, awaitTerminationSeconds);
+
+        return scheduler;
+    }
+}
