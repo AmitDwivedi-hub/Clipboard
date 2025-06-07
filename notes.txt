@@ -1,6 +1,8 @@
 /**
- * Retrieves the file path to the keystore resource from the classpath.
+ * Retrieves the file path to the truststore resource from the classpath.
+ * The truststore file should be located in the classpath (e.g., in src/main/resources)
+ * and is typically in JKS or PKCS12 format.
  *
- * @return The file path to the keystore as a String.
- * @throws NullPointerException if the keystore resource is not found in the classpath.
+ * @return The file path to the truststore as a String.
+ * @throws IllegalStateException if the truststore file is not found in the classpath.
  */
