@@ -1,8 +1,242 @@
+import com.mongodb.ConnectionString;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.util.Objects;
+
 /**
- * Retrieves the file path to the truststore resource from the classpath.
- * The truststore file should be located in the classpath (e.g., in src/main/resources)
- * and is typically in JKS or PKCS12 format.
- *
- * @return The file path to the truststore as a String.
- * @throws IllegalStateException if the truststore file is not found in the classpath.
+ * Configuration class for MongoDB client with SSL settings, extending AbstractMongoClientConfig.
+ * Provides methods to initialize SSLContext, configure MongoClientSettings, create a MongoClient,
+ * and set up a MongoTemplate for database operations.
  */
+public class SSLMongoConfig extends AbstractMongoClientConfig {
+    private static final Logger logger = LoggerFactory.getLogger(SSLMongoConfig.class);
+
+    // Configuration fields (loaded from environment variables for security)
+    private final String mongoURI = System.getenv("MONGO_URI"); // e.g., "mongodb://localhost:27017"
+    private final String mongoDatabase = System.getenv("MONGO_DATABASE"); // e.g., "myDatabase"
+    private final String keystorePassword = System.getenv("MONGO_KEYSTORE_PASSWORD");
+    private final String keyPassword = System.getenv("MONGO_KEY_PASSWORD");
+    private final String truststorePassword = System.getenv("MONGO_TRUSTSTORE_PASSWORD");
+
+    /**
+     * Retrieves the file path to the keystore resource from the classpath.
+     *
+     * @return The file path to the keystore as a String.
+     * @throws NullPointerException if the keystore resource is not found in the classpath.
+     */
+    private String getKeyStorePath() {
+        return Thread.currentThread().getContextClassLoader().getResource("keystore.jks").getFile();
+    }
+
+    /**
+     * Retrieves the file path to the truststore resource from the classpath.
+     *
+     * @return The file path to the truststore as a String.
+     * @throws NullPointerException if the truststore resource is not found in the classpath.
+     */
+    private String getTrustStorePath() {
+        return Thread.currentThread().getContextClassLoader().getResource("truststore.jks").getFile();
+    }
+
+    /**
+     * Loads a KeyStore from a file path with the specified store type and password.
+     *
+     * @param filePath  The path to the keystore file.
+     * @param storeType The type of the KeyStore (e.g., "JKS" or "PKCS12").
+     * @param password  The password to decrypt the keystore.
+     * @return A loaded KeyStore instance.
+     * @throws KeyStoreException         If the KeyStore cannot be created or initialized.
+     * @throws IOException              If there is an error reading the file.
+     * @throws NoSuchAlgorithmException If the algorithm for integrity check is not found.
+     * @throws CertificateException     If there is an error with certificates in the keystore.
+     */
+    private KeyStore loadKeyStore(String filePath, String storeType, char[] password) 
+        throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
+        if (filePath == null) {
+            throw new IllegalArgumentException("File path cannot be null");
+        }
+
+        File file = new File(filePath);
+        if (!file.exists() || !file.canRead()) {
+            throw new IOException("Cannot read file: " + filePath);
+        }
+
+        KeyStore keyStore = KeyStore.getInstance(storeType);
+        try (FileInputStream fis = new FileInputStream(file.getPath())) {
+            keyStore.load(fis, password);
+        }
+        return keyStore;
+    }
+
+    /**
+     * Initializes an SSLContext for secure communication using a keystore and truststore with TLS protocol.
+     *
+     * @return A configured SSLContext instance.
+     * @throws Exception If there is an error initializing the SSLContext (e.g., keystore/truststore issues).
+     */
+    private SSLContext initializeSSLContext() throws Exception {
+        validatePasswords();
+
+        // Initialize SSLContext with TLS protocol
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+
+        // Load KeyStore
+        KeyStore keyStore = loadKeyStore(
+            getKeyStorePath(), 
+            KeyStore.getDefaultType(), 
+            keystorePassword.toCharArray()
+        );
+
+        // Load TrustStore
+        KeyStore trustStore = loadKeyStore(
+            getTrustStorePath(), 
+            KeyStore.getDefaultType(), 
+            truststorePassword.toCharArray()
+        );
+
+        // Initialize KeyManagerFactory
+        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(
+            KeyManagerFactory.getDefaultAlgorithm()
+        );
+        keyManagerFactory.init(keyStore, keyPassword.toCharArray());
+
+        // Initialize TrustManagerFactory
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
+            TrustManagerFactory.getDefaultAlgorithm()
+        );
+        trustManagerFactory.init(trustStore);
+
+        // Initialize SSLContext
+        sslContext.init(
+            keyManagerFactory.getKeyManagers(),
+            trustManagerFactory.getTrustManagers(),
+            null
+        );
+
+        return sslContext;
+    }
+
+    /**
+     * Validates that the keystore, key, and truststore passwords are not null or empty.
+     *
+     * @throws IllegalStateException if any password is null or empty.
+     */
+    private void validatePasswords() {
+        if (keystorePassword == null || keystorePassword.isEmpty()) {
+            throw new IllegalStateException("Keystore password must not be null or empty");
+        }
+        if (keyPassword == null || keyPassword.isEmpty()) {
+            throw new IllegalStateException("Key password must not be null or empty");
+        }
+        if (truststorePassword == null || truststorePassword.isEmpty()) {
+            throw new IllegalStateException("Truststore password must not be null or empty");
+        }
+    }
+
+    /**
+     * Configures MongoClientSettings with SSL enabled and a connection string.
+     *
+     * @return Configured MongoClientSettings.
+     * @throws IllegalStateException if SSL context initialization or connection string parsing fails.
+     */
+    public MongoClientSettings mongoClientSettings() {
+        if (mongoURI == null || mongoURI.trim().isEmpty()) {
+            throw new IllegalArgumentException("MongoDB connection string (mongoURI) must not be null or empty");
+        }
+
+        MongoClientSettings.Builder settingsBuilder = MongoClientSettings.builder();
+        try {
+            // Apply the connection string
+            ConnectionString connectionString = new ConnectionString(mongoURI);
+            settingsBuilder.applyConnectionString(connectionString);
+
+            // Configure SSL settings
+            SSLContext sslContext = initializeSSLContext();
+            settingsBuilder.applyToSslSettings(sslBuilder -> 
+                sslBuilder.enabled(true)
+                         .context(sslContext)
+            );
+        } catch (Exception e) {
+            String errorMessage = String.format("Failed to configure MongoClientSettings with URI '%s': %s", 
+                mongoURI, e.getMessage());
+            logger.error(errorMessage, e);
+            throw new IllegalStateException(errorMessage, e);
+        }
+
+        return settingsBuilder.build();
+    }
+
+    /**
+     * Creates a MongoClient instance using the configured MongoClientSettings.
+     *
+     * @return A MongoClient instance configured with SSL settings.
+     * @throws IllegalStateException if the MongoClient cannot be created.
+     */
+    @Override
+    public MongoClient mongoClient() {
+        try {
+            MongoClientSettings settings = mongoClientSettings();
+            Objects.requireNonNull(settings, "MongoClientSettings must not be null");
+            MongoClient client = MongoClients.create(settings);
+            logger.info("Successfully created MongoClient with settings: {}", settings);
+            return client;
+        } catch (Exception e) {
+            String errorMessage = String.format("Failed to create MongoClient: %s", e.getMessage());
+            logger.error(errorMessage, e);
+            throw new IllegalStateException(errorMessage, e);
+        }
+    }
+
+    /**
+     * Retrieves the name of the MongoDB database to use.
+     *
+     * @return The database name.
+     * @throws IllegalStateException if the database name is not configured.
+     */
+    @Override
+    protected String getDatabaseName() {
+        if (mongoDatabase == null || mongoDatabase.trim().isEmpty()) {
+            throw new IllegalStateException("MongoDB database name must not be null or empty");
+        }
+        return mongoDatabase;
+    }
+
+    /**
+     * Creates a MongoTemplate instance for interacting with MongoDB.
+     *
+     * @param mongoClient The MongoClient instance to use.
+     * @param databaseName The name of the database to connect to.
+     * @return A configured MongoTemplate instance.
+     * @throws IllegalArgumentException if mongoClient or databaseName is null/empty.
+     * @throws IllegalStateException if MongoTemplate creation fails.
+     */
+    public MongoTemplate mongoTemplate(MongoClient mongoClient, String databaseName) {
+        Objects.requireNonNull(mongoClient, "MongoClient must not be null");
+        if (databaseName == null || databaseName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Database name must not be null or empty");
+        }
+
+        try {
+            return new MongoTemplate(mongoClient, databaseName);
+        } catch (Exception e) {
+            String errorMessage = String.format("Failed to create MongoTemplate for database '%s': %s", 
+                databaseName, e.getMessage());
+            logger.error(errorMessage, e);
+            throw new IllegalStateException(errorMessage, e);
+        }
+    }
+}
