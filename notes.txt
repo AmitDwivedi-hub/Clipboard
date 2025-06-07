@@ -1,33 +1,11 @@
-<dependency>
-    <groupId>org.apache.httpcomponents</groupId>
-    <artifactId>httpclient</artifactId>
-    <version>4.5.14</version>
-</dependency>
+@Value("${rest.template.connect.timeout:10000}")
+    private int connectTimeout;
 
-@Bean
-public RestTemplate getRestTemplate() {
-    // Set up connection pooling
-    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-    connectionManager.setMaxTotal(maxConnections);
-    connectionManager.setDefaultMaxPerRoute(maxConnectionsPerRoute);
+    @Value("${rest.template.read.timeout:240000}")
+    private int readTimeout;
 
-    // Optional: Evict idle connections after 30 seconds
-    connectionManager.setValidateAfterInactivity(2000); // Validate connections after 2 seconds of inactivity (optional)
-    
-    // Create HttpClient with connection manager
-    CloseableHttpClient httpClient = HttpClients.custom()
-            .setConnectionManager(connectionManager)
-            .evictIdleConnections(30, TimeUnit.SECONDS) // Close idle connections after 30 seconds
-            .build();
+    @Value("${rest.template.max.connections:200}")
+    private int maxConnections;
 
-    // Configure request factory with timeouts
-    HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
-    requestFactory.setHttpClient(httpClient);
-    requestFactory.setConnectTimeout(connectTimeout);
-    requestFactory.setReadTimeout(readTimeout);
-
-    // Create and return RestTemplate
-    RestTemplate restTemplate = new RestTemplate(requestFactory);
-    logger.info("RestTemplate configured with connectTimeout={}ms, readTimeout={}ms", connectTimeout, readTimeout);
-    return restTemplate;
-}
+    @Value("${rest.template.max.connections.per.route:20}")
+    private int maxConnectionsPerRoute;
