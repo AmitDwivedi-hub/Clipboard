@@ -1,85 +1,82 @@
 package com.esi.daas.hdclaim.common.config; // Assuming this package based on previous context
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Projection;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.PostConstruct;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 @Configuration
-public class EmailConfig {
+@Slf4j
+public class ProtocolConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(EmailConfig.class);
+    private final MongoTemplate mongoTemplate;
 
-    @Value("${mail.openshift.smtp.host}")
-    private String host;
+    @Autowired
+    public ProtocolConfig(MongoTemplate mongoTemplate) {
+        this.mongoTemplate = mongoTemplate;
+    }
 
-    @Value("${mail.openshift.smtp.port}")
-    private String port;
+    @Bean("protocolStore")
+    @Primary
+    @Scope("singleton")
+    @Cacheable(value = "protocolStoreCache") // Cache the result
+    public Properties getProperties() {
+        try {
+            // Use a projection to fetch only name and resolution fields
+            Query query = new Query();
+            query.fields().include("name").include("resolution").exclude("_id");
+            List<Protocol> protocolList = mongoTemplate.find(query, Protocol.class);
 
-    @Value("${mail.openshift.smtp.svacc.id}")
-    private String username;
+            // Convert list to Properties using streams
+            Properties props = protocolList.stream()
+                    .filter(this::isValidProtocol)
+                    .collect(Collectors.toMap(
+                            Protocol::getName,
+                            Protocol::getResolution,
+                            (v1, v2) -> v1, // Merge function in case of duplicate names (keep first)
+                            Properties::new
+                    ));
 
-    @Value("${mail.openshift.smtp.svacc.pwd}")
-    private String password;
-
-    @Value("${mail.smtp.auth:true}")
-    private boolean smtpAuth;
-
-    @Value("${mail.smtp.starttls.enable:true}")
-    private boolean startTlsEnabled;
-
-    @Value("${mail.smtp.connectiontimeout:5000}")
-    private int connectionTimeout;
-
-    @Value("${mail.smtp.timeout:10000}")
-    private int timeout;
-
-    @PostConstruct
-    public void validateProperties() {
-        if (!StringUtils.hasText(host)) {
-            throw new IllegalArgumentException("SMTP host must not be empty");
-        }
-        if (!StringUtils.hasText(username)) {
-            throw new IllegalArgumentException("SMTP username must not be empty");
-        }
-        if (!StringUtils.hasText(password)) {
-            logger.warn("SMTP password is empty. Ensure this is intentional.");
+            log.info("Protocol Store successfully created with {} protocols", props.size());
+            return props;
+        } catch (Exception e) {
+            log.error("Failed to load Protocol Store from MongoDB: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to create Protocol Store", e);
         }
     }
 
-    @Bean
-    public JavaMailSender javaMailSender() {
-        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-        mailSender.setHost(host);
-        
-        try {
-            mailSender.setPort(Integer.parseInt(port));
-        } catch (NumberFormatException e) {
-            logger.error("Invalid SMTP port value: {}. Defaulting to 587", port, e);
-            mailSender.setPort(587); // Default SMTP port
+    private boolean isValidProtocol(Protocol protocol) {
+        if (protocol == null || !StringUtils.hasText(protocol.getName()) || !StringUtils.hasText(protocol.getResolution())) {
+            log.warn("Skipping invalid protocol: name={}, resolution={}",
+                    protocol != null ? protocol.getName() : null,
+                    protocol != null ? protocol.getResolution() : null);
+            return false;
         }
+        return true;
+    }
+}
 
-        mailSender.setUsername(username);
-        mailSender.setPassword(password);
+// Placeholder for the Protocol class (since it's not shown in the image)
+class Protocol {
+    private String name;
+    private String resolution;
 
-        Properties properties = new Properties();
-        properties.put("mail.smtp.auth", String.valueOf(smtpAuth));
-        properties.put("mail.smtp.starttls.enable", String.valueOf(startTlsEnabled));
-        properties.put("mail.smtp.connectiontimeout", connectionTimeout); // 5 seconds
-        properties.put("mail.smtp.timeout", timeout); // 10 seconds
+    public String getName() {
+        return name;
+    }
 
-        mailSender.setJavaMailProperties(properties);
-
-        logger.info("JavaMailSender configured with host={}, port={}, username={}, smtpAuth={}, startTlsEnabled={}, connectionTimeout={}ms, timeout={}ms",
-                host, port, username, smtpAuth, startTlsEnabled, connectionTimeout, timeout);
-
-        return mailSender;
+    public String getResolution() {
+        return resolution;
     }
 }
