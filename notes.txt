@@ -1,82 +1,57 @@
-package com.esi.daas.hdclaim.common.config; // Assuming this package based on previous context
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Scope;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Projection;
-import org.springframework.util.StringUtils;
-
-import java.util.List;
-import java.util.Properties;
-import java.util.stream.Collectors;
-
-@Configuration
-@Slf4j
-public class ProtocolConfig {
-
-    private final MongoTemplate mongoTemplate;
-
-    @Autowired
-    public ProtocolConfig(MongoTemplate mongoTemplate) {
-        this.mongoTemplate = mongoTemplate;
+public Properties validateCred(HttpServletRequest header) throws Exception {
+    String authHeader = header.getHeader("Authorization");
+    if (authHeader == null || StringUtils.isBlank(authHeader)) {
+        throw new BadCredentialsException("Unauthorized. Missing or invalid Authorization header");
     }
 
-    @Bean("protocolStore")
-    @Primary
-    @Scope("singleton")
-    @Cacheable(value = "protocolStoreCache") // Cache the result
-    public Properties getProperties() {
-        try {
-            // Use a projection to fetch only name and resolution fields
-            Query query = new Query();
-            query.fields().include("name").include("resolution").exclude("_id");
-            List<Protocol> protocolList = mongoTemplate.find(query, Protocol.class);
-
-            // Convert list to Properties using streams
-            Properties props = protocolList.stream()
-                    .filter(this::isValidProtocol)
-                    .collect(Collectors.toMap(
-                            Protocol::getName,
-                            Protocol::getResolution,
-                            (v1, v2) -> v1, // Merge function in case of duplicate names (keep first)
-                            Properties::new
-                    ));
-
-            log.info("Protocol Store successfully created with {} protocols", props.size());
-            return props;
-        } catch (Exception e) {
-            log.error("Failed to load Protocol Store from MongoDB: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create Protocol Store", e);
-        }
+    if (!authHeader.startsWith("Basic ")) {
+        throw new BadCredentialsException("Unauthorized. Invalid Authorization header format");
     }
 
-    private boolean isValidProtocol(Protocol protocol) {
-        if (protocol == null || !StringUtils.hasText(protocol.getName()) || !StringUtils.hasText(protocol.getResolution())) {
-            log.warn("Skipping invalid protocol: name={}, resolution={}",
-                    protocol != null ? protocol.getName() : null,
-                    protocol != null ? protocol.getResolution() : null);
-            return false;
-        }
-        return true;
+    String[] credentials;
+    try {
+        credentials = new String(Base64.getDecoder().decode(authHeader.substring(6))).split(":");
+    } catch (IllegalArgumentException e) {
+        throw new BadCredentialsException("Unauthorized. Invalid Base64 encoding in Authorization header");
     }
+
+    if (credentials.length != 2) {
+        throw new BadCredentialsException("Unauthorized. Invalid credentials format");
+    }
+
+    if (StringUtils.isBlank(credentials[0])) {
+        throw new BadCredentialsException("Unauthorized. UserID cannot be blank");
+    }
+    if (StringUtils.isBlank(credentials[1])) {
+        throw new BadCredentialsException("Unauthorized. Password cannot be blank");
+    }
+
+    String userId = credentials[0];
+    String password = credentials[1];
+    props.put("username", userId);
+    props.put("password", password);
+
+    DatabaseConnector connector = new DatabaseConnector();
+    try (Connection conn = connector.getConnection("DB2", userId, password)) {
+        // Connection successful, no further action needed
+    } catch (Exception e) {
+        handleConnectionException(e);
+    }
+
+    return props;
 }
 
-// Placeholder for the Protocol class (since it's not shown in the image)
-class Protocol {
-    private String name;
-    private String resolution;
-
-    public String getName() {
-        return name;
-    }
-
-    public String getResolution() {
-        return resolution;
+private void handleConnectionException(Exception e) throws UnauthenticatedUserException {
+    String message = e.getMessage();
+    if (message.contains("Password expired")) {
+        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Password expired.");
+    } else if (message.contains("User ID invalid")) {
+        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Invalid UserID.");
+    } else if (message.contains("User ID or Password invalid")) {
+        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Invalid UserID or Password.");
+    } else if (message.contains("User ID revoked")) {
+        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. User ID in revoked status.");
+    } else {
+        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Unknown error: " + message);
     }
 }
