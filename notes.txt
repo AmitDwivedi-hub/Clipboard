@@ -1,65 +1,79 @@
-public Properties validateCred(HttpServletRequest header) throws Exception {
-    String authHeader = header.getHeader("Authorization");
+import org.apache.commons.lang3.StringUtils;
+import java.util.Base64;
+import java.util.Properties;
+import javax.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-    // If Authorization header is absent or blank, return props without validation
-    if (authHeader == null || StringUtils.isBlank(authHeader)) {
-        return props;
+public class HeaderProcessor {
+    private static final Logger log = LoggerFactory.getLogger(HeaderProcessor.class);
+    private static final String AUTH_PREFIX = "Basic ";
+    private static final String GENERIC_USER = "GENERIC_USER";
+    private static final String NON_GENERIC_USER = "NON_GENERIC_USER";
+
+    public Properties processHeader(HttpServletRequest header) throws BadCredentialsException {
+        Properties properties = new Properties();
+        String userType = determineUserType(header, properties);
+        populateProperties(header, properties, userType);
+        return properties;
     }
 
-    // Validate the Authorization header format
-    if (!authHeader.startsWith("Basic ")) {
-        throw new BadCredentialsException("Unauthorized. Invalid Authorization header format");
+    private String determineUserType(HttpServletRequest header, Properties properties) throws BadCredentialsException {
+        String authHeader = header.getHeader("Authorization");
+        if (StringUtils.isBlank(authHeader)) {
+            log.debug("Authorization header is missing, defaulting to GENERIC_USER");
+            return GENERIC_USER;
+        }
+
+        if (!authHeader.startsWith(AUTH_PREFIX)) {
+            log.warn("Invalid Authorization header format: {}", authHeader);
+            throw new BadCredentialsException("Invalid Authorization header format");
+        }
+
+        String[] credentials = decodeCredentials(authHeader);
+        validateCredentials(credentials);
+        
+        properties.put("username", credentials[0].trim().toUpperCase());
+        properties.put("password", credentials[1].trim());
+        return NON_GENERIC_USER;
     }
 
-    // Decode the Base64 credentials
-    String[] credentials;
-    try {
-        credentials = new String(Base64.getDecoder().decode(authHeader.substring(6))).split(":");
-    } catch (IllegalArgumentException e) {
-        throw new BadCredentialsException("Unauthorized. Invalid Base64 encoding in Authorization header");
+    private String[] decodeCredentials(String authHeader) throws BadCredentialsException {
+        try {
+            String encodedCredentials = authHeader.substring(AUTH_PREFIX.length());
+            return new String(Base64.getDecoder().decode(encodedCredentials)).split(":", 2);
+        } catch (IllegalArgumentException e) {
+            log.error("Failed to decode Authorization header: {}", authHeader, e);
+            throw new BadCredentialsException("Invalid Base64 encoding in Authorization header");
+        }
     }
 
-    // Ensure credentials array has exactly 2 elements (username and password)
-    if (credentials.length != 2) {
-        throw new BadCredentialsException("Unauthorized. Invalid credentials format");
+    private void validateCredentials(String[] credentials) throws BadCredentialsException {
+        if (credentials.length != 2 || StringUtils.isBlank(credentials[0])) {
+            log.warn("UserId is missing or blank in credentials");
+            throw new BadCredentialsException("Unauthorized. UserId cannot be blank");
+        }
+        if (StringUtils.isBlank(credentials[1])) {
+            log.warn("Password is missing or blank in credentials");
+            throw new BadCredentialsException("Unauthorized. Password cannot be blank");
+        }
     }
 
-    // Validate username and password are not blank
-    if (StringUtils.isBlank(credentials[0])) {
-        throw new BadCredentialsException("Unauthorized. UserID cannot be blank");
-    }
-    if (StringUtils.isBlank(credentials[1])) {
-        throw new BadCredentialsException("Unauthorized. Password cannot be blank");
-    }
-
-    // Populate props with username and password
-    String userId = credentials[0];
-    String password = credentials[1];
-    props.put("username", userId);
-    props.put("password", password);
-
-    // Perform database validation since credentials are provided
-    DatabaseConnector connector = new DatabaseConnector();
-    try (Connection conn = connector.getConnection("DB2", userId, password)) {
-        // Connection successful, no further action needed
-    } catch (Exception e) {
-        handleConnectionException(e);
-    }
-
-    return props;
-}
-
-private void handleConnectionException(Exception e) throws UnauthenticatedUserException {
-    String message = e.getMessage();
-    if (message.contains("Password expired")) {
-        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Password expired.");
-    } else if (message.contains("User ID invalid")) {
-        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Invalid UserID.");
-    } else if (message.contains("User ID or Password invalid")) {
-        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Invalid UserID or Password.");
-    } else if (message.contains("User ID revoked")) {
-        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. User ID in revoked status.");
-    } else {
-        throw new UnauthenticatedUserException("Ticket Creation failed: Unauthorized user. Unknown error: " + message);
+    private void populateProperties(HttpServletRequest header, Properties properties, String userType) {
+        String[] headerKeys = {"emailId", "consumer", "userId", "team"};
+        for (String key : headerKeys) {
+            String value = header.getHeader(key);
+            if (StringUtils.isBlank(value)) {
+                log.info("{} is missing in header", key);
+                properties.put(key, ""); // Set empty string for missing values
+            } else {
+                // Only consumer, userId, and team need to be uppercase
+                if (!key.equals("emailId")) {
+                    value = value.toUpperCase();
+                }
+                properties.put(key, value);
+            }
+        }
+        properties.put("userType", userType);
     }
 }
