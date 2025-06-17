@@ -1,79 +1,49 @@
 import org.apache.commons.lang3.StringUtils;
-import java.util.Base64;
-import java.util.Properties;
-import javax.servlet.http.HttpServletRequest;
+import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.servlet.http.HttpServletRequest;
 
-public class HeaderProcessor {
-    private static final Logger log = LoggerFactory.getLogger(HeaderProcessor.class);
+public class AuthorizationProcessor {
+    private static final Logger log = LoggerFactory.getLogger(AuthorizationProcessor.class);
     private static final String AUTH_PREFIX = "Basic ";
-    private static final String GENERIC_USER = "GENERIC_USER";
-    private static final String NON_GENERIC_USER = "NON_GENERIC_USER";
+    private static final String ERROR_ATTRIBUTE = "Error";
 
-    public Properties processHeader(HttpServletRequest header) throws BadCredentialsException {
-        Properties properties = new Properties();
-        String userType = determineUserType(header, properties);
-        populateProperties(header, properties, userType);
-        return properties;
+    private final ConfigServerScope configServerScope;
+
+    public AuthorizationProcessor(ConfigServerScope configServerScope) {
+        this.configServerScope = configServerScope;
     }
 
-    private String determineUserType(HttpServletRequest header, Properties properties) throws BadCredentialsException {
-        String authHeader = header.getHeader("Authorization");
-        if (StringUtils.isBlank(authHeader)) {
-            log.debug("Authorization header is missing, defaulting to GENERIC_USER");
-            return GENERIC_USER;
-        }
+    public HttpServletRequest createAuthorization(HDRequestPayload inputRequest, HttpServletRequest request) {
+        HDCustomHttpServletRequest hdCustomHttpServletRequest = new HDCustomHttpServletRequest(request);
 
-        if (!authHeader.startsWith(AUTH_PREFIX)) {
-            log.warn("Invalid Authorization header format: {}", authHeader);
-            throw new BadCredentialsException("Invalid Authorization header format");
-        }
-
-        String[] credentials = decodeCredentials(authHeader);
-        validateCredentials(credentials);
-        
-        properties.put("username", credentials[0].trim().toUpperCase());
-        properties.put("password", credentials[1].trim());
-        return NON_GENERIC_USER;
-    }
-
-    private String[] decodeCredentials(String authHeader) throws BadCredentialsException {
-        try {
-            String encodedCredentials = authHeader.substring(AUTH_PREFIX.length());
-            return new String(Base64.getDecoder().decode(encodedCredentials)).split(":", 2);
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to decode Authorization header: {}", authHeader, e);
-            throw new BadCredentialsException("Invalid Base64 encoding in Authorization header");
-        }
-    }
-
-    private void validateCredentials(String[] credentials) throws BadCredentialsException {
-        if (credentials.length != 2 || StringUtils.isBlank(credentials[0])) {
-            log.warn("UserId is missing or blank in credentials");
-            throw new BadCredentialsException("Unauthorized. UserId cannot be blank");
-        }
-        if (StringUtils.isBlank(credentials[1])) {
-            log.warn("Password is missing or blank in credentials");
-            throw new BadCredentialsException("Unauthorized. Password cannot be blank");
-        }
-    }
-
-    private void populateProperties(HttpServletRequest header, Properties properties, String userType) {
-        String[] headerKeys = {"emailId", "consumer", "userId", "team"};
-        for (String key : headerKeys) {
-            String value = header.getHeader(key);
-            if (StringUtils.isBlank(value)) {
-                log.info("{} is missing in header", key);
-                properties.put(key, ""); // Set empty string for missing values
-            } else {
-                // Only consumer, userId, and team need to be uppercase
-                if (!key.equals("emailId")) {
-                    value = value.toUpperCase();
-                }
-                properties.put(key, value);
+        if (StringUtils.isNotBlank(inputRequest.getUserId()) && StringUtils.isNotBlank(inputRequest.getPassword())) {
+            try {
+                String encryptedPwd = EncryptionAlgo.encrypt(inputRequest.getPassword(), configServerScope.getSecretKey()); // Assuming encrypt is intended
+                byte[] encodedAuth = Base64.encodeBase64(encryptedPwd.getBytes());
+                String authHeader = AUTH_PREFIX + new String(encodedAuth);
+                hdCustomHttpServletRequest.addHeader("Authorization", authHeader);
+                log.debug("Authorization header set with encrypted credentials for userId: {}", inputRequest.getUserId());
+            } catch (Exception e) {
+                log.error("Failed to create Authorization header: {}", e.getMessage());
+                request.setAttribute(ERROR_ATTRIBUTE, "Failed to encrypt credentials");
             }
+        } else if (StringUtils.isNotBlank(inputRequest.getConsumer())) {
+            String consumer = request.getHeader("consumer");
+            if (StringUtils.isBlank(consumer)) {
+                log.warn("Consumer header is missing");
+                request.setAttribute(ERROR_ATTRIBUTE, "User Name and Password can not be empty");
+            } else {
+                log.debug("Consumer header processed: {}", consumer);
+                // Optionally set consumer-related header if needed
+                // hdCustomHttpServletRequest.addHeader("Consumer", consumer.toUpperCase());
+            }
+        } else {
+            log.warn("No valid credentials or consumer provided");
+            request.setAttribute(ERROR_ATTRIBUTE, "User Name and Password or Consumer must be provided");
         }
-        properties.put("userType", userType);
+
+        return hdCustomHttpServletRequest;
     }
 }
