@@ -1,13 +1,17 @@
 public Properties validateCred(HttpServletRequest header) throws Exception {
     String authHeader = header.getHeader("Authorization");
+
+    // If Authorization header is absent or blank, return props without validation
     if (authHeader == null || StringUtils.isBlank(authHeader)) {
-        throw new BadCredentialsException("Unauthorized. Missing or invalid Authorization header");
+        return props;
     }
 
+    // Validate the Authorization header format
     if (!authHeader.startsWith("Basic ")) {
         throw new BadCredentialsException("Unauthorized. Invalid Authorization header format");
     }
 
+    // Decode the Base64 credentials
     String[] credentials;
     try {
         credentials = new String(Base64.getDecoder().decode(authHeader.substring(6))).split(":");
@@ -15,10 +19,12 @@ public Properties validateCred(HttpServletRequest header) throws Exception {
         throw new BadCredentialsException("Unauthorized. Invalid Base64 encoding in Authorization header");
     }
 
+    // Ensure credentials array has exactly 2 elements (username and password)
     if (credentials.length != 2) {
         throw new BadCredentialsException("Unauthorized. Invalid credentials format");
     }
 
+    // Validate username and password are not blank
     if (StringUtils.isBlank(credentials[0])) {
         throw new BadCredentialsException("Unauthorized. UserID cannot be blank");
     }
@@ -26,11 +32,13 @@ public Properties validateCred(HttpServletRequest header) throws Exception {
         throw new BadCredentialsException("Unauthorized. Password cannot be blank");
     }
 
+    // Populate props with username and password
     String userId = credentials[0];
     String password = credentials[1];
     props.put("username", userId);
     props.put("password", password);
 
+    // Perform database validation since credentials are provided
     DatabaseConnector connector = new DatabaseConnector();
     try (Connection conn = connector.getConnection("DB2", userId, password)) {
         // Connection successful, no further action needed
