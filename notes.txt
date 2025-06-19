@@ -1,29 +1,44 @@
-public class CommonUtils {
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-    // Constants for substring indices and delimiter
-    private static final int UUID_START_INDEX = 1;
-    private static final int UUID_MIDDLE_INDEX = 8;
-    private static final int UUID_END_INDEX = 18;
-    private static final String DELIMITER = "-";
-
-    public static String getTicketId(String orderType) { // ¹ Aravinda Perumbudi *
-        if (orderType == null || orderType.trim().isEmpty()) {
-            log.info("Invalid input: null or empty orderType");
-            return null;
+public static <T> void validateHeaders(String[] FIELD_MAPPING, int sheetIndex, int startIndex, MultipartFile file) throws Exception {
+    try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        // Validate workbook and sheet
+        if (workbook == null) {
+            throw new InvalidRequest("Workbook is null");
+        }
+        Sheet sheet = workbook.getSheetAt(sheetIndex);
+        if (sheet == null) {
+            throw new InvalidRequest("Sheet at index " + sheetIndex + " not found");
         }
 
-        // Generate UUID and convert to string, removing hyphens
-        String uuidStr = UUID.randomUUID().toString().replace(DELIMITER, "");
+        Row row = sheet.getRow(startIndex);
+        if (row == null) {
+            throw new InvalidRequest("Row at index " + startIndex + " not found");
+        }
 
-        // Extract relevant parts of UUID and concatenate with orderType
-        return orderType.toUpperCase() + DELIMITER +
-               uuidStr.substring(UUID_START_INDEX, UUID_MIDDLE_INDEX) + DELIMITER +
-               uuidStr.substring(UUID_MIDDLE_INDEX, UUID_END_INDEX) + DELIMITER +
-               uuidStr.substring(UUID_END_INDEX);
+        List<String> headingList = new ArrayList<>();
+        DataFormatter dataFormatter = new DataFormatter();
+
+        // Collect headers
+        for (int i = 0; i < FIELD_MAPPING.length; i++) {
+            Cell cell = row.getCell(i);
+            String cellValue = (cell != null) ? dataFormatter.formatCellValue(cell).trim() : "";
+            headingList.add(cellValue);
+        }
+
+        // Validate headers using Stream
+        for (int i = 0; i < headingList.size(); i++) {
+            String expected = FIELD_MAPPING[i];
+            String actual = headingList.get(i);
+            if (!actual.equals(expected)) {
+                throw new InvalidTemplateException("The input excel template being used is " +
+                    "not correct. Please re-download the latest one from SSP Portal. " +
+                    "Expected column with name '" + expected + "' at index " + i);
+            }
+        }
+    } catch (InvalidTemplateException e) {
+        log.info(e.getMessage());
+        throw e;
+    } catch (Exception e) {
+        log.info(e.getMessage());
+        throw new InvalidRequest("Exception occurred while reading column headers.", e);
     }
-
-    // Other methods like isBackdateDateValid can remain as previously optimized
-
-    private static final Logger log = LoggerFactory.getLogger(CommonUtils.class);
 }
