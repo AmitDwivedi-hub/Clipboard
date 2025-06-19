@@ -1,8 +1,5 @@
 public class CommonUtils {
-    private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyy-MM-dd");
-    static {
-        SDF.setLenient(false); // Prevent lenient date parsing
-    }
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public static boolean isBackdateDateValid(String backdateDate, String dos) {
         if (backdateDate == null || dos == null || backdateDate.trim().isEmpty() || dos.trim().isEmpty()) {
@@ -11,8 +8,8 @@ public class CommonUtils {
         }
 
         try {
-            Date d1 = SDF.parse(backdateDate);
-            Date d2 = SDF.parse(dos);
+            LocalDate d1 = LocalDate.parse(backdateDate, DATE_FORMATTER);
+            LocalDate d2 = LocalDate.parse(dos, DATE_FORMATTER);
 
             int comparison = d1.compareTo(d2);
             if (comparison > 0) {
@@ -25,11 +22,11 @@ public class CommonUtils {
                 log.info("Backdate date and date of service are equal");
                 return true;
             }
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             log.info("Parse error: " + e.getMessage());
             return false;
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(CommonUtils.class); // Assuming a logging framework
+    private static final Logger log = LoggerFactory.getLogger(CommonUtils.class);
 }
