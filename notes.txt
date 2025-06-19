@@ -1,32 +1,32 @@
 public class CommonUtils {
+    // Static final map initialized once with all status mappings
+    private static final Map<String, String> STATUS_MAP = new HashMap<>() {{
+        put("0", "ORDER ENTRY");
+        put("1", "INIT. SET");
+        put("3", "CORR. SET");
+        put("4", "QUEUE REA");
+        put("5", "RECV IN-P");
+        put("6", "RECV ENDE");
+        put("7", "PAC REJEC");
+        put("9", "RESEND RE");
+        put("10", "ORDER COM");
+        put("12", "PAC RECPT");
+        put("14", "PAC ACCEP");
+        put("98", "REPL COM");
+        put("99", "ORDER COM");
+    }};
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    public static boolean isBackdateDateValid(String backdateDate, String dos) {
-        if (backdateDate == null || dos == null || backdateDate.trim().isEmpty() || dos.trim().isEmpty()) {
-            log.info("Invalid input: null or empty date strings");
-            return false;
+    public static String getStatusInMedqa(String statusCode) { // usage ¹ Aravinda
+        if (statusCode == null || statusCode.trim().isEmpty()) {
+            log.info("Invalid input: null or empty status code");
+            return null;
         }
-
-        try {
-            LocalDate d1 = LocalDate.parse(backdateDate, DATE_FORMATTER);
-            LocalDate d2 = LocalDate.parse(dos, DATE_FORMATTER);
-
-            int comparison = d1.compareTo(d2);
-            if (comparison > 0) {
-                log.info("Backdate date occurs after date of service");
-                return false;
-            } else if (comparison < 0) {
-                log.info("Backdate date occurs before date of service");
-                return true;
-            } else {
-                log.info("Backdate date and date of service are equal");
-                return true;
-            }
-        } catch (DateTimeParseException e) {
-            log.info("Parse error: " + e.getMessage());
-            return false;
-        }
+        return STATUS_MAP.get(statusCode);
     }
+
+    // Other methods like isBackdateDateValid can remain as previously optimized
 
     private static final Logger log = LoggerFactory.getLogger(CommonUtils.class);
 }
