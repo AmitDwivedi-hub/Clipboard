@@ -1,29 +1,26 @@
 public class CommonUtils {
-    // Static final map initialized once with all status mappings
-    private static final Map<String, String> STATUS_MAP = new HashMap<>() {{
-        put("0", "ORDER ENTRY");
-        put("1", "INIT. SET");
-        put("3", "CORR. SET");
-        put("4", "QUEUE REA");
-        put("5", "RECV IN-P");
-        put("6", "RECV ENDE");
-        put("7", "PAC REJEC");
-        put("9", "RESEND RE");
-        put("10", "ORDER COM");
-        put("12", "PAC RECPT");
-        put("14", "PAC ACCEP");
-        put("98", "REPL COM");
-        put("99", "ORDER COM");
-    }};
-
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    public static String getStatusInMedqa(String statusCode) { // usage ¹ Aravinda
-        if (statusCode == null || statusCode.trim().isEmpty()) {
-            log.info("Invalid input: null or empty status code");
+    // Constants for substring indices and delimiter
+    private static final int UUID_START_INDEX = 1;
+    private static final int UUID_MIDDLE_INDEX = 8;
+    private static final int UUID_END_INDEX = 18;
+    private static final String DELIMITER = "-";
+
+    public static String getTicketId(String orderType) { // ¹ Aravinda Perumbudi *
+        if (orderType == null || orderType.trim().isEmpty()) {
+            log.info("Invalid input: null or empty orderType");
             return null;
         }
-        return STATUS_MAP.get(statusCode);
+
+        // Generate UUID and convert to string, removing hyphens
+        String uuidStr = UUID.randomUUID().toString().replace(DELIMITER, "");
+
+        // Extract relevant parts of UUID and concatenate with orderType
+        return orderType.toUpperCase() + DELIMITER +
+               uuidStr.substring(UUID_START_INDEX, UUID_MIDDLE_INDEX) + DELIMITER +
+               uuidStr.substring(UUID_MIDDLE_INDEX, UUID_END_INDEX) + DELIMITER +
+               uuidStr.substring(UUID_END_INDEX);
     }
 
     // Other methods like isBackdateDateValid can remain as previously optimized
