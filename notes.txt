@@ -1,4 +1,4 @@
-public static <T> void validateHeaders(String[] FIELD_MAPPING, int sheetIndex, int startIndex, MultipartFile file) throws Exception {
+public static <T> void validateHeaders(String[][] FIELD_MAPPING, int sheetIndex, int startIndex, MultipartFile file) throws Exception {
     try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
         // Validate workbook and sheet
         if (workbook == null) {
@@ -17,16 +17,19 @@ public static <T> void validateHeaders(String[] FIELD_MAPPING, int sheetIndex, i
         List<String> headingList = new ArrayList<>();
         DataFormatter dataFormatter = new DataFormatter();
 
-        // Collect headers
+        // Collect headers from Excel row
         for (int i = 0; i < FIELD_MAPPING.length; i++) {
             Cell cell = row.getCell(i);
             String cellValue = (cell != null) ? dataFormatter.formatCellValue(cell).trim() : "";
             headingList.add(cellValue);
         }
 
-        // Validate headers using Stream
-        for (int i = 0; i < headingList.size(); i++) {
-            String expected = FIELD_MAPPING[i];
+        // Validate headers against FIELD_MAPPING (using first element of each sub-array)
+        for (int i = 0; i < FIELD_MAPPING.length; i++) {
+            if (i >= headingList.size() || FIELD_MAPPING[i] == null || FIELD_MAPPING[i].length == 0) {
+                throw new InvalidTemplateException("Invalid FIELD_MAPPING configuration at index " + i);
+            }
+            String expected = FIELD_MAPPING[i][0].trim(); // First element is the expected header
             String actual = headingList.get(i);
             if (!actual.equals(expected)) {
                 throw new InvalidTemplateException("The input excel template being used is " +
