@@ -7,16 +7,27 @@ Sub DefaultValue_Click()
     
     ' Set the range to cover potential 20 rows starting from row 5
     lastRow = 5 + 19 ' 5 to 24 (20 rows)
-    ReDim dataArray(1 To 20, 1 To 14) ' Adjust columns based on needs (e.g., 1 to 14)
-    ReDim resultArray(1 To 20, 1 To 14)
+    ReDim dataArray(1 To 20, 1 To 21) ' Adjusted to include columns 1 to 21
+    ReDim resultArray(1 To 20, 1 To 21)
     
     ' Read data into array
-    dataArray = Range("A5:N24").Value ' Adjust range to include relevant columns (A to N)
+    dataArray = Range("A5:U24").Value ' Adjusted range to include columns A to U (1 to 21)
     
     ' Process only rows where Cells(i, 4) is not empty
     outputRow = 1
     For i = 1 To 20
         If Not IsEmpty(dataArray(i, 4)) Then ' Check if column 4 (D) is not empty
+            ' Populate columns 13 to 21 for all valid rows
+            resultArray(outputRow, 13) = "AARON"
+            resultArray(outputRow, 14) = "FK011986"
+            resultArray(outputRow, 15) = "8322373500"
+            resultArray(outputRow, 16) = "2030 HUENNER RD"
+            resultArray(outputRow, 17) = "SAN ANTONIO"
+            resultArray(outputRow, 18) = "TX"
+            resultArray(outputRow, 19) = "78258"
+            resultArray(outputRow, 20) = "1566571750"
+            ' Note: Third image shows 9 values but only 8 provided; column 21 left empty or uses last value as placeholder
+            
             Select Case UCase(Trim(dataArray(i, 6))) ' Column 6 (F) for condition
                 Case "ACTIONABLE REFILL"
                     If dataArray(i, 1) < "18" Then
@@ -76,7 +87,7 @@ Sub DefaultValue_Click()
     
     ' Write results back to worksheet, resizing to the number of processed rows
     If outputRow > 1 Then
-        ReDim Preserve resultArray(1 To outputRow - 1, 1 To 14)
-        Range("A5:N" & (4 + outputRow - 1)).Value = resultArray
+        ReDim Preserve resultArray(1 To outputRow - 1, 1 To 21)
+        Range("A5:U" & (4 + outputRow - 1)).Value = resultArray
     End If
 End Sub
