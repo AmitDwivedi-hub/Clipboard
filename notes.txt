@@ -1,114 +1,74 @@
 Sub DefaultValue_Click()
-    Dim i As Long, j As Long
+    Dim i As Long
     Dim dataArray() As Variant
     Dim resultArray() As Variant
-    Dim outputRow As Long
+    Dim lastRow As Long
     
-    ' Disable screen updating for performance
-    Application.ScreenUpdating = False
-    
-    ' Set the range to cover 20 rows starting from row 5 (A5:U24)
-    ReDim dataArray(1 To 20, 1 To 21) ' 21 columns (A to U)
-    ReDim resultArray(1 To 20, 1 To 21) ' Pre-allocate for 20 rows and 21 columns
+    ' Set the range to 20 rows starting from row 5
+    lastRow = 5 + 19 ' 5 to 24 (20 rows)
+    ReDim dataArray(1 To 20, 1 To 14) ' Adjust columns based on your needs (e.g., 6, 7, 8, 10, 11)
+    ReDim resultArray(1 To 20, 1 To 14)
     
     ' Read data into array
-    dataArray = Range("A5:U24").Value ' Range for 20 rows and 21 columns
+    dataArray = Range("A5:N24").Value ' Adjust range to include relevant columns (e.g., A to N for columns 1 to 14)
     
-    ' Process only rows where Cells(i, 4) is not empty
-    outputRow = 0 ' Start at 0, increment to 1 for the first valid row
+    ' Process data in memory
     For i = 1 To 20
-        If Not IsEmpty(dataArray(i, 4)) Then ' Check if column 4 (D) is not empty
-            outputRow = outputRow + 1
-            ' Preserve original column 4 value
-            resultArray(outputRow, 4) = dataArray(i, 4)
-            
-            ' Populate columns 13 to 21 for all valid rows
-            resultArray(outputRow, 13) = "AARON"
-            resultArray(outputRow, 14) = "FK011986"
-            resultArray(outputRow, 15) = "8322373500"
-            resultArray(outputRow, 16) = "2030 HUENNER RD"
-            resultArray(outputRow, 17) = "SAN ANTONIO"
-            resultArray(outputRow, 18) = "TX"
-            resultArray(outputRow, 19) = "78258"
-            resultArray(outputRow, 20) = "1566571750"
-            ' Column 21 left empty as per the third image
-            
-            Select Case UCase(Trim(dataArray(i, 6))) ' Column 6 (F) for condition
-                Case "ACTIONABLE REFILL"
-                    If dataArray(i, 1) < "18" Then
-                        resultArray(outputRow, 10) = 10
-                        resultArray(outputRow, 11) = 2
-                    Else
-                        resultArray(outputRow, 10) = 10
-                        resultArray(outputRow, 11) = 2
-                    End If
-                    resultArray(outputRow, 7) = Date - 1
-                    resultArray(outputRow, 8) = Date - 1
-                    
-                Case "ACTIONABLE RENEWAL"
-                    If dataArray(i, 1) < "18" Then
-                        resultArray(outputRow, 10) = 10
-                        resultArray(outputRow, 11) = 0
-                    Else
-                        resultArray(outputRow, 10) = 10
-                        resultArray(outputRow, 11) = 0
-                    End If
-                    resultArray(outputRow, 7) = Date - 1
-                    resultArray(outputRow, 8) = Date - 1
-                    
-                Case "PENDABLE", "VOIDED", "STOPPED", "KEYED"
-                    resultArray(outputRow, 10) = 10
-                    resultArray(outputRow, 11) = 2
-                    resultArray(outputRow, 7) = Date - 1
-                    resultArray(outputRow, 8) = Date - 1
-                    
-                Case "AUTOMATIC REFILL"
-                    resultArray(outputRow, 10) = 60
-                    resultArray(outputRow, 11) = 2
-                    resultArray(outputRow, 7) = Date - 1
-                    resultArray(outputRow, 8) = Date - 1
-                    
-                Case "AUTOMATIC RENEWAL"
-                    resultArray(outputRow, 10) = 60
-                    resultArray(outputRow, 11) = 0
-                    resultArray(outputRow, 7) = Date - 1
-                    resultArray(outputRow, 8) = Date - 1
-                    
-                Case "ORDER WITHOUT DRUG"
-                    resultArray(outputRow, 9) = ""
-                    resultArray(outputRow, 10) = ""
-                    resultArray(outputRow, 11) = ""
-                    resultArray(outputRow, 12) = ""
-                    resultArray(outputRow, 7) = Date - 1
-                    resultArray(outputRow, 8) = Date - 1
-                    
-                Case Else
-                    resultArray(outputRow, 7) = Date - 1
-                    resultArray(outputRow, 8) = Date - 1
-            End Select
-        End If
+        Select Case UCase(Trim(dataArray(i, 6))) ' Column 6 (index 6) for condition
+            Case "ACTIONABLE REFILL"
+                If dataArray(i, 1) < "18" Then
+                    resultArray(i, 10) = 10
+                    resultArray(i, 11) = 2
+                Else
+                    resultArray(i, 10) = 10
+                    resultArray(i, 11) = 2
+                End If
+                resultArray(i, 7) = Date - 1
+                resultArray(i, 8) = Date - 1
+                
+            Case "ACTIONABLE RENEWAL"
+                If dataArray(i, 1) < "18" Then
+                    resultArray(i, 10) = 10
+                    resultArray(i, 11) = 0
+                Else
+                    resultArray(i, 10) = 10
+                    resultArray(i, 11) = 0
+                End If
+                resultArray(i, 7) = Date - 1
+                resultArray(i, 8) = Date - 1
+                
+            Case "PENDABLE", "VOIDED", "STOPPED", "KEYED"
+                resultArray(i, 10) = 10
+                resultArray(i, 11) = 2
+                resultArray(i, 7) = Date - 1
+                resultArray(i, 8) = Date - 1
+                
+            Case "AUTOMATIC REFILL"
+                resultArray(i, 10) = 60
+                resultArray(i, 11) = 2
+                resultArray(i, 7) = Date - 1
+                resultArray(i, 8) = Date - 1
+                
+            Case "AUTOMATIC RENEWAL"
+                resultArray(i, 10) = 60
+                resultArray(i, 11) = 0
+                resultArray(i, 7) = Date - 1
+                resultArray(i, 8) = Date - 1
+                
+            Case "ORDER WITHOUT DRUG"
+                resultArray(i, 9) = ""
+                resultArray(i, 10) = ""
+                resultArray(i, 11) = ""
+                resultArray(i, 12) = ""
+                resultArray(i, 7) = Date - 1
+                resultArray(i, 8) = Date - 1
+                
+            Case Else
+                resultArray(i, 7) = Date - 1
+                resultArray(i, 8) = Date - 1
+        End Select
     Next i
     
-    ' Write results back to worksheet
-    If outputRow > 0 Then
-        Dim tempArray() As Variant
-        ReDim tempArray(1 To outputRow, 1 To 21)
-        ' Copy only the used rows to tempArray
-        For i = 1 To outputRow
-            For j = 1 To 21
-                tempArray(i, j) = resultArray(i, j)
-            Next j
-        Next i
-        ' Write to the exact range of processed rows
-        Range("A5:U" & (4 + outputRow)).Value = tempArray
-    End If
-    
-    ' Reset scroll area to full sheet to ensure scrollbar works
-    With ActiveSheet
-        .ScrollArea = "" ' Clear any restricted scroll area
-        .Activate ' Ensure the sheet is active to refresh UI
-    End With
-    
-    ' Re-enable screen updating
-    Application.ScreenUpdating = True
+    ' Write results back to worksheet in one operation
+    Range("A5:N24").Value = resultArray ' Adjust range to match the output columns
 End Sub
