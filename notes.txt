@@ -1,6 +1,5 @@
 Sub DefaultValue_Click()
     Dim ws As Worksheet
-    Dim lastRow As Long
     Dim dataRange As Range
     Dim dataArray As Variant
     Dim i As Long
@@ -8,47 +7,60 @@ Sub DefaultValue_Click()
     ' Set reference to the active worksheet
     Set ws = ActiveSheet
     
-    ' Find the last row in column 4 (D)
-    lastRow = ws.Cells(ws.Rows.Count, 4).End(xlUp).Row
-    
-    ' Load data into an array for faster processing
-    Set dataRange = ws.Range("A5:L" & lastRow)
+    ' Define the range for rows 5 to 24 (max 20 rows from row 5)
+    Set dataRange = ws.Range("A5:L24")
     dataArray = dataRange.Value
     
-    ' Loop through the array
+    ' Loop through the array (20 rows)
     For i = 1 To UBound(dataArray, 1)
-        ' Convert column F (index 6) to uppercase and trim
-        Dim status As String
-        status = UCase(Trim(dataArray(i, 6)))
-        
-        ' Set common values for all cases
-        dataArray(i, 7) = Date - 1 ' Column G
-        dataArray(i, 8) = Date - 1 ' Column H
-        
-        ' Process based on status
-        Select Case status
-            Case "ACTIONABLE REFILL", "PENDABLE", "VOIDED", "STOPPED", "KEYED"
-                dataArray(i, 10) = 10 ' Column J
-                dataArray(i, 11) = 2  ' Column K
-                
-            Case "ACTIONABLE RENEWAL"
-                dataArray(i, 10) = 10 ' Column J
-                dataArray(i, 11) = 0  ' Column K
-                
-            Case "AUTOMATIC REFILL"
-                dataArray(i, 10) = 60 ' Column J
-                dataArray(i, 11) = 2  ' Column K
-                
-            Case "AUTOMATIC RENEWAL"
-                dataArray(i, 10) = 60 ' Column J
-                dataArray(i, 11) = 0  ' Column K
-                
-            Case "ORDER WITHOUT DRUG"
-                dataArray(i, 9) = ""  ' Column I
-                dataArray(i, 10) = "" ' Column J
-                dataArray(i, 11) = "" ' Column K
-                dataArray(i, 12) = "" ' Column L
-        End Select
+        ' Check if column D (index 4) is empty
+        If IsEmpty(dataArray(i, 4)) Or Trim(dataArray(i, 4)) = "" Then
+            ' Clear values in columns A, B, C, E, F, G, H, I, J, K, L (1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12)
+            dataArray(i, 1) = ""
+            dataArray(i, 2) = ""
+            dataArray(i, 3) = ""
+            dataArray(i, 5) = ""
+            dataArray(i, 6) = ""
+            dataArray(i, 7) = ""
+            dataArray(i, 8) = ""
+            dataArray(i, 9) = ""
+            dataArray(i, 10) = ""
+            dataArray(i, 11) = ""
+            dataArray(i, 12) = ""
+        Else
+            ' Process non-empty rows
+            Dim status As String
+            status = UCase(Trim(dataArray(i, 6))) ' Column F (index 6)
+            
+            ' Set common values
+            dataArray(i, 7) = Date - 1 ' Column G
+            dataArray(i, 8) = Date - 1 ' Column H
+            
+            ' Process based on status
+            Select Case status
+                Case "ACTIONABLE REFILL", "PENDABLE", "VOIDED", "STOPPED", "KEYED"
+                    dataArray(i, 10) = 10 ' Column J
+                    dataArray(i, 11) = 2  ' Column K
+                    
+                Case "ACTIONABLE RENEWAL"
+                    dataArray(i, 10) = 10 ' Column J
+                    dataArray(i, 11) = 0  ' Column K
+                    
+                Case "AUTOMATIC REFILL"
+                    dataArray(i, 10) = 60 ' Column J
+                    dataArray(i, 11) = 2  ' Column K
+                    
+                Case "AUTOMATIC RENEWAL"
+                    dataArray(i, 10) = 60 ' Column J
+                    dataArray(i, 11) = 0  ' Column K
+                    
+                Case "ORDER WITHOUT DRUG"
+                    dataArray(i, 9) = ""  ' Column I
+                    dataArray(i, 10) = "" ' Column J
+                    dataArray(i, 11) = "" ' Column K
+                    dataArray(i, 12) = "" ' Column L
+            End Select
+        End If
     Next i
     
     ' Write the array back to the worksheet
