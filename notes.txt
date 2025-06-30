@@ -1,8 +1,11 @@
 Sub DefaultValue_Click()
-    Dim i As Long
+    Dim i As Long, j As Long
     Dim dataArray() As Variant
     Dim resultArray() As Variant
     Dim outputRow As Long
+    
+    ' Disable screen updating for performance
+    Application.ScreenUpdating = False
     
     ' Set the range to cover 20 rows starting from row 5 (A5:U24)
     ReDim dataArray(1 To 20, 1 To 21) ' 21 columns (A to U)
@@ -86,16 +89,26 @@ Sub DefaultValue_Click()
         End If
     Next i
     
-    ' Write results back to worksheet, resizing to the number of processed rows
+    ' Write results back to worksheet
     If outputRow > 0 Then
-        ' Create a temporary array with the exact size needed
         Dim tempArray() As Variant
         ReDim tempArray(1 To outputRow, 1 To 21)
+        ' Copy only the used rows to tempArray
         For i = 1 To outputRow
             For j = 1 To 21
                 tempArray(i, j) = resultArray(i, j)
             Next j
         Next i
+        ' Write to the exact range of processed rows
         Range("A5:U" & (4 + outputRow)).Value = tempArray
     End If
+    
+    ' Reset scroll area to full sheet to ensure scrollbar works
+    With ActiveSheet
+        .ScrollArea = "" ' Clear any restricted scroll area
+        .Activate ' Ensure the sheet is active to refresh UI
+    End With
+    
+    ' Re-enable screen updating
+    Application.ScreenUpdating = True
 End Sub
