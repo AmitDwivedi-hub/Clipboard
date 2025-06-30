@@ -1,47 +1,63 @@
-public static <T> void validateHeaders(String[][] FIELD_MAPPING, int sheetIndex, int startIndex, MultipartFile file) throws Exception {
-    try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
-        // Validate workbook and sheet
-        if (workbook == null) {
-            throw new InvalidRequest("Workbook is null");
-        }
-        Sheet sheet = workbook.getSheetAt(sheetIndex);
-        if (sheet == null) {
-            throw new InvalidRequest("Sheet at index " + sheetIndex + " not found");
-        }
-
-        Row row = sheet.getRow(startIndex);
-        if (row == null) {
-            throw new InvalidRequest("Row at index " + startIndex + " not found");
-        }
-
-        List<String> headingList = new ArrayList<>();
-        DataFormatter dataFormatter = new DataFormatter();
-
-        // Collect headers from Excel row
-        for (int i = 0; i < FIELD_MAPPING.length; i++) {
-            Cell cell = row.getCell(i);
-            String cellValue = (cell != null) ? dataFormatter.formatCellValue(cell).trim() : "";
-            headingList.add(cellValue);
-        }
-
-        // Validate headers against FIELD_MAPPING (using first element of each sub-array)
-        for (int i = 0; i < FIELD_MAPPING.length; i++) {
-            if (i >= headingList.size() || FIELD_MAPPING[i] == null || FIELD_MAPPING[i].length == 0) {
-                throw new InvalidTemplateException("Invalid FIELD_MAPPING configuration at index " + i);
-            }
-            String expected = FIELD_MAPPING[i][0].trim(); // First element is the expected header
-            String actual = headingList.get(i);
-            if (!actual.equals(expected)) {
-                throw new InvalidTemplateException("The input excel template being used is " +
-                    "not correct. Please re-download the latest one from SSP Portal. " +
-                    "Expected column with name '" + expected + "' at index " + i);
-            }
-        }
-    } catch (InvalidTemplateException e) {
-        log.info(e.getMessage());
-        throw e;
-    } catch (Exception e) {
-        log.info(e.getMessage());
-        throw new InvalidRequest("Exception occurred while reading column headers.", e);
-    }
-}
+Sub Validate_Click()
+    Dim i As Long ' Use Long instead of Integer for larger row counts
+    i = 5 ' Starting row
+    
+    ' Array to store column headers for dynamic messaging
+    Dim headers(1 To 3) As String
+    headers(1) = "PHARMACY LOCATION"
+    headers(2) = "INVOICE NUMBER"
+    headers(3) = "DELIVERY DATE"
+    
+    ' Set current date (07:50 PM IST, June 30, 2025)
+    Dim currentDate As Date
+    currentDate = #6/30/2025 7:50:00 PM#
+    
+    ' Loop until all cells in the row are empty
+    Do Until IsEmpty(Cells(i, 1)) And IsEmpty(Cells(i, 2)) And IsEmpty(Cells(i, 3))
+        Dim hasError As Boolean
+        hasError = False
+        
+        ' Check all required columns in one pass
+        Dim j As Integer
+        For j = 1 To 3
+            If Not IsEmpty(Cells(i, j)) Then
+                Select Case j
+                    Case 1 ' Pharmacy Location
+                        If Cells(i, j).Value <> "18" Then
+                            MsgBox "ROW " & i & " : " & headers(j) & " must be '18'"
+                            Exit Sub
+                        End If
+                    Case 2 ' Invoice Number
+                        Dim invNum As String
+                        invNum = CStr(Cells(i, j).Value)
+                        If Len(invNum) <> 10 Or Not IsNumeric(invNum) Then
+                            MsgBox "ROW " & i & " : " & headers(j) & " must be a 10-digit number"
+                            Exit Sub
+                        End If
+                    Case 3 ' Delivery Date
+                        Dim dateVal As Date
+                        If Not IsDate(Cells(i, j).Value) Then
+                            MsgBox "ROW " & i & " : " & headers(j) & " must be a valid date"
+                            Exit Sub
+                        Else
+                            dateVal = CDate(Cells(i, j).Value)
+                            If Format(dateVal, "mm/dd/yyyy") <> Cells(i, j).Value Then
+                                MsgBox "ROW " & i & " : " & headers(j) & " must be in MM/dd/yyyy format"
+                                Exit Sub
+                            ElseIf dateVal > currentDate Then
+                                MsgBox "ROW " & i & " : " & headers(j) & " cannot be a future date"
+                                Exit Sub
+                            End If
+                        End If
+                End Select
+            ElseIf IsEmpty(Cells(i, j)) Then
+                MsgBox "ROW " & i & " : " & headers(j) & " is Empty"
+                Exit Sub
+            End If
+        Next j
+        
+        i = i + 1
+    Loop
+    
+    MsgBox "Validation Complete. You are good to go !!"
+End Sub
