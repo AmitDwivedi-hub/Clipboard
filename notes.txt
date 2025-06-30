@@ -1,13 +1,39 @@
 Sub Validate_Click()
-    Dim i As Long ' Changed to Long to handle larger row counts
+    Dim i As Long
     Dim errorMsg As String
+    Dim ws As Worksheet
+    
+    ' Set worksheet explicitly
+    Set ws = ThisWorkbook.Sheets("Sheet1") ' Replace "Sheet1" with your sheet name
     i = 5
     
-    Do While True ' Simplified loop structure
-        ' Check for empty mandatory fields first
+    ' Log start of macro
+    Debug.Print "Starting validation at " & Now & " from row " & i
+    
+    Do While True
+        ' Log the row being processed and key column values
+        Debug.Print "Processing row " & i & ": " & _
+                    "Col 1 (PHARMACY LOCATION) = '" & ws.Cells(i, 1).Value & "', " & _
+                    "Col 4 (MEMBER NUMBER) = '" & ws.Cells(i, 4).Value & "', " & _
+                    "Col 5 (PERSON NUMBER) = '" & ws.Cells(i, 5).Value & "', " & _
+                    "Col 6 (PRESCRIPTION TYPE) = '" & ws.Cells(i, 6).Value & "'"
+        
+        ' Check loop exit condition
+        If IsEmpty(ws.Cells(i, 1)) And IsEmpty(ws.Cells(i, 4)) And IsEmpty(ws.Cells(i, 5)) And IsEmpty(ws.Cells(i, 6)) Then
+            Debug.Print "Exiting loop at row " & i & ": All columns (1, 4, 5, 6) are empty"
+            Exit Do
+        End If
+        
+        ' Explicit check for empty PHARMACY LOCATION
+        If IsEmpty(ws.Cells(i, 1)) Or Trim(ws.Cells(i, 1).Value) = "" Then
+            errorMsg = "ROW " & i & " : PHARMACY LOCATION is Empty"
+            Debug.Print "Error at row " & i & ": " & errorMsg
+            GoTo ShowError
+        End If
+        
+        ' Check other mandatory fields
         Dim mandatoryFields As Variant
         mandatoryFields = Array( _
-            Array(1, "PHARMACY LOCATION"), _
             Array(4, "MEMBER NUMBER"), _
             Array(5, "PERSON NUMBER"), _
             Array(6, "PRESCRIPTION TYPE"), _
@@ -25,106 +51,120 @@ Sub Validate_Click()
         
         Dim field As Variant
         For Each field In mandatoryFields
-            If IsEmpty(Cells(i, field(0))) Then
+            If IsEmpty(ws.Cells(i, field(0))) Then
                 errorMsg = "ROW " & i & " : " & field(1) & " is Empty"
+                Debug.Print "Error at row " & i & ": " & errorMsg
                 GoTo ShowError
             End If
         Next field
         
         ' Check conditional fields for non-"ORDER WITHOUT DRUG"
-        If Cells(i, 6).Value <> "ORDER WITHOUT DRUG" Then
-            If IsEmpty(Cells(i, 9)) Then
+        If ws.Cells(i, 6).Value <> "ORDER WITHOUT DRUG" Then
+            If IsEmpty(ws.Cells(i, 9)) Then
                 errorMsg = "ROW " & i & " : DRUG NUMBER is Empty"
+                Debug.Print "Error at row " & i & ": " & errorMsg
                 GoTo ShowError
             End If
-            If IsEmpty(Cells(i, 10)) Then
+            If IsEmpty(ws.Cells(i, 10)) Then
                 errorMsg = "ROW " & i & " : DAY SUPPLY is Empty"
+                Debug.Print "Error at row " & i & ": " & errorMsg
                 GoTo ShowError
             End If
-            If IsEmpty(Cells(i, 11)) Then
+            If IsEmpty(ws.Cells(i, 11)) Then
                 errorMsg = "ROW " & i & " : REFILL COUNT is Empty"
+                Debug.Print "Error at row " & i & ": " & errorMsg
                 GoTo ShowError
             End If
-            If Cells(i, 10).Value = 0 Then
-                errorMsg = "ROW " & i & " : For Prescription Type '" & Cells(i, 6).Value & "', Day Supply should be non-zero"
-                Cells(i, 10).Value = ""
+            If ws.Cells(i, 10).Value = 0 Then
+                errorMsg = "ROW " & i & " : For Prescription Type '" & ws.Cells(i, 6).Value & "', Day Supply should be non-zero"
+                Debug.Print "Error at row " & i & ": " & errorMsg
+                ws.Cells(i, 10).Value = ""
                 GoTo ShowError
             End If
         End If
         
         ' Date validation
-        If Cells(i, 7).Value > Cells(i, 8).Value Then
+        If ws.Cells(i, 7).Value > ws.Cells(i, 8).Value Then
             errorMsg = "ROW " & i & " : RECEIVE DATE should be greater than or equal to ISSUE DATE"
-            Cells(i, 8).Value = ""
+            Debug.Print "Error at row " & i & ": " & errorMsg
+            ws.Cells(i, 8).Value = ""
             GoTo ShowError
         End If
         
         ' Specialty Location (18) validations
-        If Cells(i, 1).Value = "18" Then
+        If ws.Cells(i, 1).Value = "18" Then
             Dim invalidTypes As Variant
             invalidTypes = Array("VOIDED", "PENDED", "STOPPED", "AUTOMATIC REFILL", "AUTOMATIC RENEWAL")
             Dim presType As String
-            presType = Cells(i, 6).Value
+            presType = ws.Cells(i, 6).Value
             
             If IsInArray(presType, invalidTypes) Then
                 errorMsg = "ROW " & i & " : Prescription Type '" & presType & "' is not eligible for Specialty Location"
-                Cells(i, 6).Value = ""
+                Debug.Print "Error at row " & i & ": " & errorMsg
+                ws.Cells(i, 6).Value = ""
                 GoTo ShowError
             End If
         End If
         
         ' Prescription type specific validations
-        Select Case Cells(i, 6).Value
+        Select Case ws.Cells(i, 6).Value
             Case "ACTIONABLE REFILL", "AUTOMATIC REFILL"
-                If Cells(i, 11).Value <= 0 Then
-                    errorMsg = "ROW " & i & " : For Prescription Type '" & Cells(i, 6).Value & "', Refill Count should be greater than zero"
-                    Cells(i, 11).Value = ""
+                If ws.Cells(i, 11).Value <= 0 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type '" & ws.Cells(i, 6).Value & "', Refill Count should be greater than zero"
+                    Debug.Print "Error at row " & i & ": " & errorMsg
+                    ws.Cells(i, 11).Value = ""
                     GoTo ShowError
                 End If
-                If Cells(i, 6).Value = "AUTOMATIC REFILL" And Cells(i, 10).Value < 56 Then
+                If ws.Cells(i, 6).Value = "AUTOMATIC REFILL" And ws.Cells(i, 10).Value < 56 Then
                     errorMsg = "ROW " & i & " : For Prescription Type 'AUTOMATIC REFILL', Day Supply should be Greater than 56"
-                    Cells(i, 10).Value = ""
+                    Debug.Print "Error at row " & i & ": " & errorMsg
+                    ws.Cells(i, 10).Value = ""
                     GoTo ShowError
                 End If
                 
             Case "ACTIONABLE RENEWAL", "AUTOMATIC RENEWAL"
-                If Cells(i, 11).Value <> 0 Then
-                    errorMsg = "ROW " & i & " : For Prescription Type '" & Cells(i, 6).Value & "', Refill Count should be zero"
-                    Cells(i, 11).Value = ""
+                If ws.Cells(i, 11).Value <> 0 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type '" & ws.Cells(i, 6).Value & "', Refill Count should be zero"
+                    Debug.Print "Error at row " & i & ": " & errorMsg
+                    ws.Cells(i, 11).Value = ""
                     GoTo ShowError
                 End If
-                If Cells(i, 6).Value = "AUTOMATIC RENEWAL" And Cells(i, 10).Value < 56 Then
+                If ws.Cells(i, 6).Value = "AUTOMATIC RENEWAL" And ws.Cells(i, 10).Value < 56 Then
                     errorMsg = "ROW " & i & " : For Prescription Type 'AUTOMATIC RENEWAL', Day Supply should be Greater than 56"
-                    Cells(i, 10).Value = ""
+                    Debug.Print "Error at row " & i & ": " & errorMsg
+                    ws.Cells(i, 10).Value = ""
                     GoTo ShowError
                 End If
                 
             Case "PENDABLE"
-                If Cells(i, 10).Value < 84 Then
+                If ws.Cells(i, 10).Value < 84 Then
                     errorMsg = "ROW " & i & " : For Prescription Type 'PENDABLE', Day Supply should be Greater than 84"
-                    Cells(i, 10).Value = ""
+                    Debug.Print "Error at row " & i & ": " & errorMsg
+                    ws.Cells(i, 10).Value = ""
                     GoTo ShowError
                 End If
-                If Cells(i, 11).Value < 3 Then
+                If ws.Cells(i, 11).Value < 3 Then
                     errorMsg = "ROW " & i & " : For Prescription Type 'PENDABLE', Refill Count should be Greater than 2"
-                    Cells(i, 11).Value = ""
+                    Debug.Print "Error at row " & i & ": " & errorMsg
+                    ws.Cells(i, 11).Value = ""
                     GoTo ShowError
                 End If
         End Select
         
+        Debug.Print "Row " & i & " passed all validations, moving to next row"
         i = i + 1
-        If IsEmpty(Cells(i, 1)) Then Exit Do ' Exit when next row's pharmacy location is empty
     Loop
     
+    Debug.Print "Validation completed at " & Now
     MsgBox "Validation Complete. You are good to go!!"
     Exit Sub
 
 ShowError:
+    Debug.Print "Exiting due to error: " & errorMsg
     MsgBox errorMsg
     Exit Sub
 End Sub
 
-' Helper function to check if value exists in array
 Private Function IsInArray(val As Variant, arr As Variant) As Boolean
     Dim element As Variant
     For Each element In arr
