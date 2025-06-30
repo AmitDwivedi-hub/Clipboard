@@ -2,21 +2,23 @@ Sub DefaultValue_Click()
     Dim i As Long
     Dim dataArray() As Variant
     Dim resultArray() As Variant
-    Dim lastRow As Long
     Dim outputRow As Long
     
-    ' Set the range to cover potential 20 rows starting from row 5
-    lastRow = 5 + 19 ' 5 to 24 (20 rows)
-    ReDim dataArray(1 To 20, 1 To 21) ' Adjusted to include columns 1 to 21
-    ReDim resultArray(1 To 20, 1 To 21)
+    ' Set the range to cover 20 rows starting from row 5 (A5:U24)
+    ReDim dataArray(1 To 20, 1 To 21) ' 21 columns (A to U)
+    ReDim resultArray(1 To 20, 1 To 21) ' Pre-allocate for 20 rows and 21 columns
     
     ' Read data into array
-    dataArray = Range("A5:U24").Value ' Adjusted range to include columns A to U (1 to 21)
+    dataArray = Range("A5:U24").Value ' Range for 20 rows and 21 columns
     
     ' Process only rows where Cells(i, 4) is not empty
-    outputRow = 1
+    outputRow = 0 ' Start at 0, increment to 1 for the first valid row
     For i = 1 To 20
         If Not IsEmpty(dataArray(i, 4)) Then ' Check if column 4 (D) is not empty
+            outputRow = outputRow + 1
+            ' Preserve original column 4 value
+            resultArray(outputRow, 4) = dataArray(i, 4)
+            
             ' Populate columns 13 to 21 for all valid rows
             resultArray(outputRow, 13) = "AARON"
             resultArray(outputRow, 14) = "FK011986"
@@ -26,7 +28,7 @@ Sub DefaultValue_Click()
             resultArray(outputRow, 18) = "TX"
             resultArray(outputRow, 19) = "78258"
             resultArray(outputRow, 20) = "1566571750"
-            ' Note: Third image shows 9 values but only 8 provided; column 21 left empty or uses last value as placeholder
+            ' Column 21 left empty as per the third image
             
             Select Case UCase(Trim(dataArray(i, 6))) ' Column 6 (F) for condition
                 Case "ACTIONABLE REFILL"
@@ -81,13 +83,19 @@ Sub DefaultValue_Click()
                     resultArray(outputRow, 7) = Date - 1
                     resultArray(outputRow, 8) = Date - 1
             End Select
-            outputRow = outputRow + 1
         End If
     Next i
     
     ' Write results back to worksheet, resizing to the number of processed rows
-    If outputRow > 1 Then
-        ReDim Preserve resultArray(1 To outputRow - 1, 1 To 21)
-        Range("A5:U" & (4 + outputRow - 1)).Value = resultArray
+    If outputRow > 0 Then
+        ' Create a temporary array with the exact size needed
+        Dim tempArray() As Variant
+        ReDim tempArray(1 To outputRow, 1 To 21)
+        For i = 1 To outputRow
+            For j = 1 To 21
+                tempArray(i, j) = resultArray(i, j)
+            Next j
+        Next i
+        Range("A5:U" & (4 + outputRow)).Value = tempArray
     End If
 End Sub
