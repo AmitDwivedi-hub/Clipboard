@@ -8,9 +8,20 @@ Sub Validate_Click()
     headers(2) = "INVOICE NUMBER"
     headers(3) = "DELIVERY DATE"
     
-    ' Set current date (08:16 PM IST, June 30, 2025)
+    ' Set current date dynamically (adjusted to IST if needed)
     Dim currentDate As Date
-    currentDate = #6/30/2025 8:16:00 PM#
+    currentDate = DateAdd("h", 5.5, Now) ' Adjust to IST (UTC+5:30) if system is not in IST
+    
+    ' Create RegExp object for date format validation
+    Dim regEx As Object
+    Set regEx = CreateObject("VBScript.RegExp")
+    regEx.Pattern = "^(\d{1,2}/\d{1,2}/\d{4})$"
+    regEx.IgnoreCase = True
+    regEx.Global = False
+    
+    ' Array of allowed Pharmacy Location values
+    Dim allowedLocations As Variant
+    allowedLocations = Array(16, 12, 13, 14) ' List of allowed values
     
     ' Loop until all cells in the row are empty
     Do Until IsEmpty(Cells(i, 1)) And IsEmpty(Cells(i, 2)) And IsEmpty(Cells(i, 3))
@@ -23,8 +34,19 @@ Sub Validate_Click()
             If Not IsEmpty(Cells(i, j)) Then
                 Select Case j
                     Case 1 ' Pharmacy Location
-                        If Cells(i, j).Value <> "18" Then
-                            MsgBox "ROW " & i & " : " & headers(j) & " must be '18'"
+                        Dim locValue As String
+                        locValue = CStr(Cells(i, j).Value)
+                        Dim isValidLocation As Boolean
+                        isValidLocation = False
+                        Dim k As Integer
+                        For k = LBound(allowedLocations) To UBound(allowedLocations)
+                            If locValue = CStr(allowedLocations(k)) Then
+                                isValidLocation = True
+                                Exit For
+                            End If
+                        Next k
+                        If Not isValidLocation Then
+                            MsgBox "ROW " & i & " : " & headers(j) & " must be one of [16, 12, 13, 14]"
                             Exit Sub
                         End If
                     Case 2 ' Invoice Number
@@ -47,10 +69,8 @@ Sub Validate_Click()
                             MsgBox "ROW " & i & " : " & headers(j) & " must be a valid date"
                             Exit Sub
                         Else
-                            ' Check if the format is M/d/yyyy or mm/dd/yyyy
-                            Dim datePattern As String
-                            datePattern = "^(\d{1,2}/\d{1,2}/\d{4})$"
-                            If Not cellValue Like datePattern Then
+                            ' Check if the format is M/d/yyyy or mm/dd/yyyy using RegExp
+                            If Not regEx.Test(cellValue) Then
                                 MsgBox "ROW " & i & " : " & headers(j) & " must be in M/d/yyyy or mm/dd/yyyy format"
                                 Exit Sub
                             Else
