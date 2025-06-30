@@ -1,68 +1,137 @@
-Sub DefaultValue_Click()
-    Dim ws As Worksheet
-    Dim dataRange As Range
-    Dim dataArray As Variant
-    Dim i As Long
+Sub Validate_Click()
+    Dim i As Long ' Changed to Long to handle larger row counts
+    Dim errorMsg As String
+    i = 5
     
-    ' Set reference to the active worksheet
-    Set ws = ActiveSheet
-    
-    ' Define the range for rows 5 to 24 (max 20 rows from row 5)
-    Set dataRange = ws.Range("A5:L24")
-    dataArray = dataRange.Value
-    
-    ' Loop through the array (20 rows)
-    For i = 1 To UBound(dataArray, 1)
-        ' Check if column D (index 4) is empty
-        If IsEmpty(dataArray(i, 4)) Or Trim(dataArray(i, 4)) = "" Then
-            ' Clear values in columns A, B, C, E, F, G, H, I, J, K, L (1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12)
-            dataArray(i, 1) = ""
-            dataArray(i, 2) = ""
-            dataArray(i, 3) = ""
-            dataArray(i, 5) = ""
-            dataArray(i, 6) = ""
-            dataArray(i, 7) = ""
-            dataArray(i, 8) = ""
-            dataArray(i, 9) = ""
-            dataArray(i, 10) = ""
-            dataArray(i, 11) = ""
-            dataArray(i, 12) = ""
-        Else
-            ' Process non-empty rows
-            Dim status As String
-            status = UCase(Trim(dataArray(i, 6))) ' Column F (index 6)
-            
-            ' Set common values
-            dataArray(i, 7) = Date - 1 ' Column G
-            dataArray(i, 8) = Date - 1 ' Column H
-            
-            ' Process based on status
-            Select Case status
-                Case "ACTIONABLE REFILL", "PENDABLE", "VOIDED", "STOPPED", "KEYED"
-                    dataArray(i, 10) = 10 ' Column J
-                    dataArray(i, 11) = 2  ' Column K
-                    
-                Case "ACTIONABLE RENEWAL"
-                    dataArray(i, 10) = 10 ' Column J
-                    dataArray(i, 11) = 0  ' Column K
-                    
-                Case "AUTOMATIC REFILL"
-                    dataArray(i, 10) = 60 ' Column J
-                    dataArray(i, 11) = 2  ' Column K
-                    
-                Case "AUTOMATIC RENEWAL"
-                    dataArray(i, 10) = 60 ' Column J
-                    dataArray(i, 11) = 0  ' Column K
-                    
-                Case "ORDER WITHOUT DRUG"
-                    dataArray(i, 9) = ""  ' Column I
-                    dataArray(i, 10) = "" ' Column J
-                    dataArray(i, 11) = "" ' Column K
-                    dataArray(i, 12) = "" ' Column L
-            End Select
+    Do While True ' Simplified loop structure
+        ' Check for empty mandatory fields first
+        Dim mandatoryFields As Variant
+        mandatoryFields = Array( _
+            Array(1, "PHARMACY LOCATION"), _
+            Array(4, "MEMBER NUMBER"), _
+            Array(5, "PERSON NUMBER"), _
+            Array(6, "PRESCRIPTION TYPE"), _
+            Array(7, "ISSUE DATE"), _
+            Array(8, "RECEIVE DATE"), _
+            Array(13, "PRESCRIBER FIRST NAME"), _
+            Array(14, "PRESCRIBER LAST NAME"), _
+            Array(15, "PRESCRIBER DEA"), _
+            Array(16, "PRESCRIBER PHONE NUMBER"), _
+            Array(17, "PRESCRIBER ADDRESS"), _
+            Array(18, "PRESCRIBER CITY"), _
+            Array(19, "PRESCRIBER STATE"), _
+            Array(20, "PRESCRIBER ZIP CODE"), _
+            Array(21, "PRESCRIBER NPI"))
+        
+        Dim field As Variant
+        For Each field In mandatoryFields
+            If IsEmpty(Cells(i, field(0))) Then
+                errorMsg = "ROW " & i & " : " & field(1) & " is Empty"
+                GoTo ShowError
+            End If
+        Next field
+        
+        ' Check conditional fields for non-"ORDER WITHOUT DRUG"
+        If Cells(i, 6).Value <> "ORDER WITHOUT DRUG" Then
+            If IsEmpty(Cells(i, 9)) Then
+                errorMsg = "ROW " & i & " : DRUG NUMBER is Empty"
+                GoTo ShowError
+            End If
+            If IsEmpty(Cells(i, 10)) Then
+                errorMsg = "ROW " & i & " : DAY SUPPLY is Empty"
+                GoTo ShowError
+            End If
+            If IsEmpty(Cells(i, 11)) Then
+                errorMsg = "ROW " & i & " : REFILL COUNT is Empty"
+                GoTo ShowError
+            End If
+            If Cells(i, 10).Value = 0 Then
+                errorMsg = "ROW " & i & " : For Prescription Type '" & Cells(i, 6).Value & "', Day Supply should be non-zero"
+                Cells(i, 10).Value = ""
+                GoTo ShowError
+            End If
         End If
-    Next i
+        
+        ' Date validation
+        If Cells(i, 7).Value > Cells(i, 8).Value Then
+            errorMsg = "ROW " & i & " : RECEIVE DATE should be greater than or equal to ISSUE DATE"
+            Cells(i, 8).Value = ""
+            GoTo ShowError
+        End If
+        
+        ' Specialty Location (18) validations
+        If Cells(i, 1).Value = "18" Then
+            Dim invalidTypes As Variant
+            invalidTypes = Array("VOIDED", "PENDED", "STOPPED", "AUTOMATIC REFILL", "AUTOMATIC RENEWAL")
+            Dim presType As String
+            presType = Cells(i, 6).Value
+            
+            If IsInArray(presType, invalidTypes) Then
+                errorMsg = "ROW " & i & " : Prescription Type '" & presType & "' is not eligible for Specialty Location"
+                Cells(i, 6).Value = ""
+                GoTo ShowError
+            End If
+        End If
+        
+        ' Prescription type specific validations
+        Select Case Cells(i, 6).Value
+            Case "ACTIONABLE REFILL", "AUTOMATIC REFILL"
+                If Cells(i, 11).Value <= 0 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type '" & Cells(i, 6).Value & "', Refill Count should be greater than zero"
+                    Cells(i, 11).Value = ""
+                    GoTo ShowError
+                End If
+                If Cells(i, 6).Value = "AUTOMATIC REFILL" And Cells(i, 10).Value < 56 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type 'AUTOMATIC REFILL', Day Supply should be Greater than 56"
+                    Cells(i, 10).Value = ""
+                    GoTo ShowError
+                End If
+                
+            Case "ACTIONABLE RENEWAL", "AUTOMATIC RENEWAL"
+                If Cells(i, 11).Value <> 0 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type '" & Cells(i, 6).Value & "', Refill Count should be zero"
+                    Cells(i, 11).Value = ""
+                    GoTo ShowError
+                End If
+                If Cells(i, 6).Value = "AUTOMATIC RENEWAL" And Cells(i, 10).Value < 56 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type 'AUTOMATIC RENEWAL', Day Supply should be Greater than 56"
+                    Cells(i, 10).Value = ""
+                    GoTo ShowError
+                End If
+                
+            Case "PENDABLE"
+                If Cells(i, 10).Value < 84 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type 'PENDABLE', Day Supply should be Greater than 84"
+                    Cells(i, 10).Value = ""
+                    GoTo ShowError
+                End If
+                If Cells(i, 11).Value < 3 Then
+                    errorMsg = "ROW " & i & " : For Prescription Type 'PENDABLE', Refill Count should be Greater than 2"
+                    Cells(i, 11).Value = ""
+                    GoTo ShowError
+                End If
+        End Select
+        
+        i = i + 1
+        If IsEmpty(Cells(i, 1)) Then Exit Do ' Exit when next row's pharmacy location is empty
+    Loop
     
-    ' Write the array back to the worksheet
-    dataRange.Value = dataArray
+    MsgBox "Validation Complete. You are good to go!!"
+    Exit Sub
+
+ShowError:
+    MsgBox errorMsg
+    Exit Sub
 End Sub
+
+' Helper function to check if value exists in array
+Private Function IsInArray(val As Variant, arr As Variant) As Boolean
+    Dim element As Variant
+    For Each element In arr
+        If element = val Then
+            IsInArray = True
+            Exit Function
+        End If
+    Next element
+    IsInArray = False
+End Function
