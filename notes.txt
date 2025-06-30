@@ -8,9 +8,9 @@ Sub Validate_Click()
     headers(2) = "INVOICE NUMBER"
     headers(3) = "DELIVERY DATE"
     
-    ' Set current date (08:03 PM IST, June 30, 2025)
+    ' Set current date (08:16 PM IST, June 30, 2025)
     Dim currentDate As Date
-    currentDate = #6/30/2025 8:03:00 PM#
+    currentDate = #6/30/2025 8:16:00 PM#
     
     ' Loop until all cells in the row are empty
     Do Until IsEmpty(Cells(i, 1)) And IsEmpty(Cells(i, 2)) And IsEmpty(Cells(i, 3))
@@ -36,24 +36,34 @@ Sub Validate_Click()
                         End If
                     Case 3 ' Delivery Date
                         Dim dateVal As Date
+                        Dim cellValue As String
+                        cellValue = Trim(Cells(i, j).Value)
+                        
                         On Error Resume Next ' Handle potential conversion errors
-                        dateVal = CDate(Cells(i, j).Value)
+                        dateVal = CDate(cellValue)
                         On Error GoTo 0 ' Reset error handling
                         
-                        If Err.Number <> 0 Or Not IsDate(Cells(i, j).Value) Then
+                        If Err.Number <> 0 Or Not IsDate(cellValue) Then
                             MsgBox "ROW " & i & " : " & headers(j) & " must be a valid date"
                             Exit Sub
                         Else
-                            ' Accept both M/d/yyyy and mm/dd/yyyy by formatting to a standard
-                            Dim formattedDate As String
-                            formattedDate = Format(dateVal, "m/d/yyyy")
-                            ' Convert back to date for comparison
-                            If CDate(formattedDate) <> dateVal Then
+                            ' Check if the format is M/d/yyyy or mm/dd/yyyy
+                            Dim datePattern As String
+                            datePattern = "^(\d{1,2}/\d{1,2}/\d{4})$"
+                            If Not cellValue Like datePattern Then
                                 MsgBox "ROW " & i & " : " & headers(j) & " must be in M/d/yyyy or mm/dd/yyyy format"
                                 Exit Sub
-                            ElseIf dateVal > currentDate Then
-                                MsgBox "ROW " & i & " : " & headers(j) & " cannot be a future date"
-                                Exit Sub
+                            Else
+                                ' Validate the parsed date
+                                Dim formattedDate As String
+                                formattedDate = Format(dateVal, "m/d/yyyy")
+                                If CDate(formattedDate) <> dateVal Then
+                                    MsgBox "ROW " & i & " : " & headers(j) & " must be in M/d/yyyy or mm/dd/yyyy format"
+                                    Exit Sub
+                                ElseIf dateVal > currentDate Then
+                                    MsgBox "ROW " & i & " : " & headers(j) & " cannot be a future date"
+                                    Exit Sub
+                                End If
                             End If
                         End If
                 End Select
