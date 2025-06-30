@@ -1,74 +1,56 @@
 Sub DefaultValue_Click()
-    Dim i As Long
-    Dim dataArray() As Variant
-    Dim resultArray() As Variant
+    Dim ws As Worksheet
     Dim lastRow As Long
+    Dim dataRange As Range
+    Dim dataArray As Variant
+    Dim i As Long
     
-    ' Set the range to 20 rows starting from row 5
-    lastRow = 5 + 19 ' 5 to 24 (20 rows)
-    ReDim dataArray(1 To 20, 1 To 14) ' Adjust columns based on your needs (e.g., 6, 7, 8, 10, 11)
-    ReDim resultArray(1 To 20, 1 To 14)
+    ' Set reference to the active worksheet
+    Set ws = ActiveSheet
     
-    ' Read data into array
-    dataArray = Range("A5:N24").Value ' Adjust range to include relevant columns (e.g., A to N for columns 1 to 14)
+    ' Find the last row in column 4 (D)
+    lastRow = ws.Cells(ws.Rows.Count, 4).End(xlUp).Row
     
-    ' Process data in memory
-    For i = 1 To 20
-        Select Case UCase(Trim(dataArray(i, 6))) ' Column 6 (index 6) for condition
-            Case "ACTIONABLE REFILL"
-                If dataArray(i, 1) < "18" Then
-                    resultArray(i, 10) = 10
-                    resultArray(i, 11) = 2
-                Else
-                    resultArray(i, 10) = 10
-                    resultArray(i, 11) = 2
-                End If
-                resultArray(i, 7) = Date - 1
-                resultArray(i, 8) = Date - 1
+    ' Load data into an array for faster processing
+    Set dataRange = ws.Range("A5:L" & lastRow)
+    dataArray = dataRange.Value
+    
+    ' Loop through the array
+    For i = 1 To UBound(dataArray, 1)
+        ' Convert column F (index 6) to uppercase and trim
+        Dim status As String
+        status = UCase(Trim(dataArray(i, 6)))
+        
+        ' Set common values for all cases
+        dataArray(i, 7) = Date - 1 ' Column G
+        dataArray(i, 8) = Date - 1 ' Column H
+        
+        ' Process based on status
+        Select Case status
+            Case "ACTIONABLE REFILL", "PENDABLE", "VOIDED", "STOPPED", "KEYED"
+                dataArray(i, 10) = 10 ' Column J
+                dataArray(i, 11) = 2  ' Column K
                 
             Case "ACTIONABLE RENEWAL"
-                If dataArray(i, 1) < "18" Then
-                    resultArray(i, 10) = 10
-                    resultArray(i, 11) = 0
-                Else
-                    resultArray(i, 10) = 10
-                    resultArray(i, 11) = 0
-                End If
-                resultArray(i, 7) = Date - 1
-                resultArray(i, 8) = Date - 1
-                
-            Case "PENDABLE", "VOIDED", "STOPPED", "KEYED"
-                resultArray(i, 10) = 10
-                resultArray(i, 11) = 2
-                resultArray(i, 7) = Date - 1
-                resultArray(i, 8) = Date - 1
+                dataArray(i, 10) = 10 ' Column J
+                dataArray(i, 11) = 0  ' Column K
                 
             Case "AUTOMATIC REFILL"
-                resultArray(i, 10) = 60
-                resultArray(i, 11) = 2
-                resultArray(i, 7) = Date - 1
-                resultArray(i, 8) = Date - 1
+                dataArray(i, 10) = 60 ' Column J
+                dataArray(i, 11) = 2  ' Column K
                 
             Case "AUTOMATIC RENEWAL"
-                resultArray(i, 10) = 60
-                resultArray(i, 11) = 0
-                resultArray(i, 7) = Date - 1
-                resultArray(i, 8) = Date - 1
+                dataArray(i, 10) = 60 ' Column J
+                dataArray(i, 11) = 0  ' Column K
                 
             Case "ORDER WITHOUT DRUG"
-                resultArray(i, 9) = ""
-                resultArray(i, 10) = ""
-                resultArray(i, 11) = ""
-                resultArray(i, 12) = ""
-                resultArray(i, 7) = Date - 1
-                resultArray(i, 8) = Date - 1
-                
-            Case Else
-                resultArray(i, 7) = Date - 1
-                resultArray(i, 8) = Date - 1
+                dataArray(i, 9) = ""  ' Column I
+                dataArray(i, 10) = "" ' Column J
+                dataArray(i, 11) = "" ' Column K
+                dataArray(i, 12) = "" ' Column L
         End Select
     Next i
     
-    ' Write results back to worksheet in one operation
-    Range("A5:N24").Value = resultArray ' Adjust range to match the output columns
+    ' Write the array back to the worksheet
+    dataRange.Value = dataArray
 End Sub
