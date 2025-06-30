@@ -1,100 +1,82 @@
-Sub Validate_Click()
-    Dim i As Long ' Use Long instead of Integer for larger row counts
-    i = 5 ' Starting row
+Sub DefaultValue_Click()
+    Dim i As Long
+    Dim dataArray() As Variant
+    Dim resultArray() As Variant
+    Dim lastRow As Long
+    Dim outputRow As Long
     
-    ' Array to store column headers for dynamic messaging
-    Dim headers(1 To 3) As String
-    headers(1) = "PHARMACY LOCATION"
-    headers(2) = "INVOICE NUMBER"
-    headers(3) = "DELIVERY DATE"
+    ' Set the range to cover potential 20 rows starting from row 5
+    lastRow = 5 + 19 ' 5 to 24 (20 rows)
+    ReDim dataArray(1 To 20, 1 To 14) ' Adjust columns based on needs (e.g., 1 to 14)
+    ReDim resultArray(1 To 20, 1 To 14)
     
-    ' Set current date dynamically (adjusted to IST if needed)
-    Dim currentDate As Date
-    currentDate = DateAdd("h", 5.5, Now) ' Adjust to IST (UTC+5:30) if system is not in IST
+    ' Read data into array
+    dataArray = Range("A5:N24").Value ' Adjust range to include relevant columns (A to N)
     
-    ' Create RegExp object for date format validation
-    Dim regEx As Object
-    Set regEx = CreateObject("VBScript.RegExp")
-    regEx.Pattern = "^(\d{1,2}/\d{1,2}/\d{4})$"
-    regEx.IgnoreCase = True
-    regEx.Global = False
+    ' Process only rows where Cells(i, 4) is not empty
+    outputRow = 1
+    For i = 1 To 20
+        If Not IsEmpty(dataArray(i, 4)) Then ' Check if column 4 (D) is not empty
+            Select Case UCase(Trim(dataArray(i, 6))) ' Column 6 (F) for condition
+                Case "ACTIONABLE REFILL"
+                    If dataArray(i, 1) < "18" Then
+                        resultArray(outputRow, 10) = 10
+                        resultArray(outputRow, 11) = 2
+                    Else
+                        resultArray(outputRow, 10) = 10
+                        resultArray(outputRow, 11) = 2
+                    End If
+                    resultArray(outputRow, 7) = Date - 1
+                    resultArray(outputRow, 8) = Date - 1
+                    
+                Case "ACTIONABLE RENEWAL"
+                    If dataArray(i, 1) < "18" Then
+                        resultArray(outputRow, 10) = 10
+                        resultArray(outputRow, 11) = 0
+                    Else
+                        resultArray(outputRow, 10) = 10
+                        resultArray(outputRow, 11) = 0
+                    End If
+                    resultArray(outputRow, 7) = Date - 1
+                    resultArray(outputRow, 8) = Date - 1
+                    
+                Case "PENDABLE", "VOIDED", "STOPPED", "KEYED"
+                    resultArray(outputRow, 10) = 10
+                    resultArray(outputRow, 11) = 2
+                    resultArray(outputRow, 7) = Date - 1
+                    resultArray(outputRow, 8) = Date - 1
+                    
+                Case "AUTOMATIC REFILL"
+                    resultArray(outputRow, 10) = 60
+                    resultArray(outputRow, 11) = 2
+                    resultArray(outputRow, 7) = Date - 1
+                    resultArray(outputRow, 8) = Date - 1
+                    
+                Case "AUTOMATIC RENEWAL"
+                    resultArray(outputRow, 10) = 60
+                    resultArray(outputRow, 11) = 0
+                    resultArray(outputRow, 7) = Date - 1
+                    resultArray(outputRow, 8) = Date - 1
+                    
+                Case "ORDER WITHOUT DRUG"
+                    resultArray(outputRow, 9) = ""
+                    resultArray(outputRow, 10) = ""
+                    resultArray(outputRow, 11) = ""
+                    resultArray(outputRow, 12) = ""
+                    resultArray(outputRow, 7) = Date - 1
+                    resultArray(outputRow, 8) = Date - 1
+                    
+                Case Else
+                    resultArray(outputRow, 7) = Date - 1
+                    resultArray(outputRow, 8) = Date - 1
+            End Select
+            outputRow = outputRow + 1
+        End If
+    Next i
     
-    ' Array of allowed Pharmacy Location values
-    Dim allowedLocations As Variant
-    allowedLocations = Array(16, 12, 13, 14) ' List of allowed values
-    
-    ' Loop until all cells in the row are empty
-    Do Until IsEmpty(Cells(i, 1)) And IsEmpty(Cells(i, 2)) And IsEmpty(Cells(i, 3))
-        Dim hasError As Boolean
-        hasError = False
-        
-        ' Check all required columns in one pass
-        Dim j As Integer
-        For j = 1 To 3
-            If Not IsEmpty(Cells(i, j)) Then
-                Select Case j
-                    Case 1 ' Pharmacy Location
-                        Dim locValue As String
-                        locValue = CStr(Cells(i, j).Value)
-                        Dim isValidLocation As Boolean
-                        isValidLocation = False
-                        Dim k As Integer
-                        For k = LBound(allowedLocations) To UBound(allowedLocations)
-                            If locValue = CStr(allowedLocations(k)) Then
-                                isValidLocation = True
-                                Exit For
-                            End If
-                        Next k
-                        If Not isValidLocation Then
-                            MsgBox "ROW " & i & " : " & headers(j) & " must be one of [16, 12, 13, 14]"
-                            Exit Sub
-                        End If
-                    Case 2 ' Invoice Number
-                        Dim invNum As String
-                        invNum = CStr(Cells(i, j).Value)
-                        If Len(invNum) <> 10 Or Not IsNumeric(invNum) Then
-                            MsgBox "ROW " & i & " : " & headers(j) & " must be a 10-digit number"
-                            Exit Sub
-                        End If
-                    Case 3 ' Delivery Date
-                        Dim dateVal As Date
-                        Dim cellValue As String
-                        cellValue = Trim(Cells(i, j).Value)
-                        
-                        On Error Resume Next ' Handle potential conversion errors
-                        dateVal = CDate(cellValue)
-                        On Error GoTo 0 ' Reset error handling
-                        
-                        If Err.Number <> 0 Or Not IsDate(cellValue) Then
-                            MsgBox "ROW " & i & " : " & headers(j) & " must be a valid date"
-                            Exit Sub
-                        Else
-                            ' Check if the format is M/d/yyyy or mm/dd/yyyy using RegExp
-                            If Not regEx.Test(cellValue) Then
-                                MsgBox "ROW " & i & " : " & headers(j) & " must be in M/d/yyyy or mm/dd/yyyy format"
-                                Exit Sub
-                            Else
-                                ' Validate the parsed date
-                                Dim formattedDate As String
-                                formattedDate = Format(dateVal, "m/d/yyyy")
-                                If CDate(formattedDate) <> dateVal Then
-                                    MsgBox "ROW " & i & " : " & headers(j) & " must be in M/d/yyyy or mm/dd/yyyy format"
-                                    Exit Sub
-                                ElseIf dateVal > currentDate Then
-                                    MsgBox "ROW " & i & " : " & headers(j) & " cannot be a future date"
-                                    Exit Sub
-                                End If
-                            End If
-                        End If
-                End Select
-            ElseIf IsEmpty(Cells(i, j)) Then
-                MsgBox "ROW " & i & " : " & headers(j) & " is Empty"
-                Exit Sub
-            End If
-        Next j
-        
-        i = i + 1
-    Loop
-    
-    MsgBox "Validation Complete. You are good to go !!"
+    ' Write results back to worksheet, resizing to the number of processed rows
+    If outputRow > 1 Then
+        ReDim Preserve resultArray(1 To outputRow - 1, 1 To 14)
+        Range("A5:N" & (4 + outputRow - 1)).Value = resultArray
+    End If
 End Sub
