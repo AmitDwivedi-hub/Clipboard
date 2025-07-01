@@ -1,7 +1,27 @@
-Function IsCellEmpty(Cell As Range) As Boolean
-    ' Returns True if the cell is empty or contains only whitespace, False otherwise
-    IsCellEmpty = True
-    If Not IsEmpty(Cell) And Len(Trim(Cell.Value)) > 0 Then
-        IsCellEmpty = False
-    End If
-End Function
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
+public class DateComparator {
+    public static boolean isFirstDateOlder(String firstDateStr, String secondDateStr) {
+        // Check if either input string is null or empty
+        if (firstDateStr == null || firstDateStr.trim().isEmpty() || 
+            secondDateStr == null || secondDateStr.trim().isEmpty()) {
+            return false;
+        }
+
+        // Define the expected date format
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
+
+        try {
+            // Parse both date strings to LocalDate
+            LocalDate firstDate = LocalDate.parse(firstDateStr, formatter);
+            LocalDate secondDate = LocalDate.parse(secondDateStr, formatter);
+            
+            // Check if the first date is before the second date
+            return firstDate.isBefore(secondDate);
+        } catch (DateTimeParseException e) {
+            return false; // Return false if parsing fails for either date
+        }
+    }
+}
