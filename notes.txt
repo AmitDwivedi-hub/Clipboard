@@ -1,11 +1,7 @@
-Function IsRowEmpty(Row As Range) As Boolean
-    Dim Cell As Range
-    IsRowEmpty = True
-    ' Limit the range to columns 1 to 21 (A to U)
-    For Each Cell In Row.Range("A1:U1").Cells
-        If Not IsEmpty(Cell) And Len(Trim(Cell.Value)) > 0 Then
-            IsRowEmpty = False
-            Exit Function
-        End If
-    Next Cell
+Function IsCellEmpty(Cell As Range) As Boolean
+    ' Returns True if the cell is empty or contains only whitespace, False otherwise
+    IsCellEmpty = True
+    If Not IsEmpty(Cell) And Len(Trim(Cell.Value)) > 0 Then
+        IsCellEmpty = False
+    End If
 End Function
