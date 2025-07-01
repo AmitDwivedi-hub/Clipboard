@@ -1,39 +1,6 @@
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-public class PreferenceAPIUtil {
-    private static final Logger log = LoggerFactory.getLogger(PreferenceAPIUtil.class);
-    private static final String XML_TEMPLATE = FileCopyUtils.copyToByteArray(memberPreferenceXML.getInputStream());
-    private static final String USER_ID_REGEX = "USER_ID";
-    private static final String GROUP_ID_REGEX = "GROUP_ID";
-    private static final String MEMBER_ID_REGEX = "MEMBER_ID";
-    private static final String PERSON_NO_REGEX = "PERSON_NO";
-    private static final String IND_AGN_REGEX = "IND_AGN";
-
-    @Value("${classpath:memberPreferenceRequest.xml}")
-    private Resource memberPreferenceXML;
-
-    @Autowired
-    private ConfigServerScope configServerScope;
-
-    public String buildXML(HdInput input, HdOutput output) {
-        if (input == null || output == null) {
-            log.warn("Input or output is null");
-            return null;
-        }
-
-        try {
-            StringBuilder xmlBuilder = new StringBuilder(XML_TEMPLATE);
-            xmlBuilder.replace(USER_ID_REGEX, input.getUserId())
-                      .replace(GROUP_ID_REGEX, input.getEligibilityGroup())
-                      .replace(MEMBER_ID_REGEX, input.getMemberNumber())
-                      .replace(PERSON_NO_REGEX, input.getPersonNumber())
-                      .replace(IND_AGN_REGEX, output.getIndAgn());
-
-            return xmlBuilder.toString();
+try {
+            this.xmlTemplate = FileCopyUtils.copyToByteArray(memberPreferenceXML.getInputStream());
         } catch (Exception e) {
-            log.error("Error building XML: {}", e.getMessage(), e);
-            return null;
+            log.error("Failed to load XML template: {}", e.getMessage(), e);
+            throw new IllegalStateException("Unable to initialize XML template", e);
         }
-    }
-}
