@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- This is a complex XML file for testing XML parsers -->
+<library xmlns:lib="http://example.com/library" xml:lang="en">
+    <metadata>
+        <title>Library Catalog</title>
+        <version major="2" minor="1.3"/>
+        <lastUpdated>2025-08-13T14:22:00Z</lastUpdated>
+        <!-- Metadata about the library catalog -->
+        <description><![CDATA[This is a <b>sample</b> library catalog containing various books & media!]]></description>
+    </metadata>
+    <books>
+        <book id="b001" genre="Science Fiction" available="true">
+            <title>Foundation</title>
+            <author>Isaac Asimov</author>
+            <published>1951</published>
+            <isbn>978-0-553-29335-7</isbn>
+            <tags>
+                <tag>classic</tag>
+                <tag>sci-fi</tag>
+                <tag>series</tag>
+            </tags>
+            <summary lang="en">A story about the fall and rise of galactic civilizations.</summary>
+            <summary lang="fr"><![CDATA[Une histoire sur la chute et la montée des civilisations galactiques.]]></summary>
+        </book>
+        <book id="b002" genre="Fantasy" available="false">
+            <title>The Hobbit</title>
+            <author>J.R.R. Tolkien</author>
+            <published>1937</published>
+            <isbn>978-0-261-10221-7</isbn>
+            <tags>
+                <!-- Tags can be empty or contain attributes -->
+                <tag type="primary">fantasy</tag>
+                <tag type="secondary">adventure</tag>
+            </tags>
+            <reviews>
+                <review rating="5" reviewer="John Doe">
+                    <comment>An epic adventure!</comment>
+                    <date>2023-05-10</date>
+                </review>
+                <review rating="4" reviewer="Jane Smith"/>
+            </reviews>
+        </book>
+        <!-- Empty book to test handling of minimal elements -->
+        <book id="b003"/>
+    </books>
+    <media>
+        <item type="DVD" lib:status="checked-out">
+            <title>Blade Runner</title>
+            <director>Ridley Scott</director>
+            <year>1982</year>
+            <details>
+                <runtime>117 minutes</runtime>
+                <format>4K</format>
+            </details>
+        </item>
+        <item type="CD">
+            <title>Sgt. Pepper's Lonely Hearts Club Band</title>
+            <artist>The Beatles</artist>
+            <year>1967</year>
+            <!-- Mixed content test -->
+            <description>Iconic album with tracks like <song>Lucy in the Sky with Diamonds</song> and <song>A Day in the Life</song>.</description>
+        </item>
+    </media>
+    <!-- Test special characters and entities -->
+    <notes>
+        <note priority="high">Check &amp; replace damaged copies &lt;immediately&gt;!</note>
+        <note priority="low"><![CDATA[Special chars: < > & " ']]></note>
+    </notes>
+    <!-- Test empty element with attributes -->
+    <config debug="true" enabled=""/>
+</library>
