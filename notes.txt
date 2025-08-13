@@ -1,3 +1,9 @@
-Functionality: ClassWeaver uniquely automates the conversion of JSON/XML data into object classes (Java, C++, C#) with nested structure support, offering a one-click solution for developers to generate ready-to-use code from complex datasets.
-Technology: Built with Python and Streamlit, it leverages a modular architecture (e.g., StructureAnalyzer, language-specific generators) and built-in parsing, providing a lightweight, browser-based UI that runs locally—distinguishing it from heavy, cloud-dependent tools.
-Competitive Advantages: Unlike generic code generators (e.g., JSON-to-Pojo tools), ClassWeaver supports multiple languages, handles lists/nested objects seamlessly, and delivers ZIP outputs, giving it an edge in rapid prototyping and cross-platform development.
+### Usability, Accessibility, and Overall Interaction Effectiveness
+
+**Usability**: ClassWeaver offers an intuitive Streamlit UI where users upload JSON/XML files, select a language (Java, C++, C#), set a root class name, and download a ZIP—all in under 30 seconds, ideal for hackathon pacing.
+
+**Accessibility**: Runs locally with a single command (`streamlit run src/app.py`), requiring only Python and internet for setup, ensuring broad compatibility across Windows, macOS, and Linux as of August 13, 2025, 07:51 PM IST.
+
+**Interaction Effectiveness**: The clean interface minimizes clicks, provides clear feedback (e.g., error messages), and delivers consistent, editable code, enhancing developer productivity and satisfaction.
+
+*(~70 words, concise for Vibecoding submission)*
