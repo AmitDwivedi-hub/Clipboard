@@ -1,12 +1,52 @@
 ### Potential for Deployment in Similar Projects and Reusability as an Asset
 
-**Deployment Potential**: ClassWeaver is highly adaptable for similar projects, such as data-to-code converters for other languages (e.g., Python, TypeScript) or integration into IDEs like Visual Studio Code, supporting diverse development workflows as of August 13, 2025, 08:08 PM IST.
+**Deployment Potential**: ClassWeaver is highly adaptable for similar projects, such as data-to-code converters for other languages (e.g., Python, TypeScript) or integration into )*
 
-**Reusability as an Asset**: Its modular architecture (e.g., `InputParser`, `StructureAnalyzer`, language generators) allows reuse in tools for schema validation, API scaffolding, or educational platforms. The open-source code and Streamlit UI enhance its value as a reusable component for future hackathon or commercial projects.
+# Dockerfile (place at repo root)
 
-*(~80 words, concise for Vibecoding submission)*
+# Use an official slim Python image
+FROM python:3.11-slim
 
+# Prevents Python from buffering stdout/stderr (useful for logs)
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
 
+# Install OS packages required for many Python packages and for runtime tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       gcc \
+       curl \
+       libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy requirements files (if present)
+COPY requirements.txt src/requirements.txt* ./
+
+# Upgrade pip and install any requirements found.
+# This checks for both root requirements.txt and src/requirements.txt and installs whichever exist.
+RUN pip install --upgrade pip setuptools wheel \
+    && /bin/sh -c 'if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi' \
+    && /bin/sh -c 'if [ -f src/requirements.txt ]; then pip install --no-cache-dir -r src/requirements.txt; fi'
+
+# Copy the rest of the application code
+COPY . /app
+
+# Create a non-root user and switch to it
+RUN useradd --create-home --shell /bin/bash appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+# Expose the port that the app will run on
+EXPOSE 8080
+
+# Use Gunicorn with Uvicorn worker for production (adjust WORKERS as needed)
+# - src.app:app assumes your FastAPI application is at src/app.py and defines `app`
+CMD ["sh", "-c", "exec gunicorn -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} --workers ${WORKERS:-2} src.app:app"]
 
 
 ### Economic Viability: Evaluating Costs, Revenue Generation, and Financial Risks
